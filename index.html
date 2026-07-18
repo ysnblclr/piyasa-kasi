@@ -309,11 +309,13 @@
   </aside>
 </div>
 
-<script src="data1.js?v=11"></script>
-<script src="data2.js?v=11"></script>
-<script src="data3.js?v=11"></script>
-<script src="data4.js?v=11"></script>
-<script src="data5.js?v=11"></script>
+<script src="vendor-lightweight-charts.js"></script>
+<script src="realdata.js?v=12"></script>
+<script src="data1.js?v=12"></script>
+<script src="data2.js?v=12"></script>
+<script src="data3.js?v=12"></script>
+<script src="data4.js?v=12"></script>
+<script src="data5.js?v=12"></script>
 <script>
 /* ================= havuz + tur kurulumu ================= */
 const SCENARIOS_ALL = window.PK_A.concat(window.PK_B, window.PK_C, window.PK_D);
@@ -432,10 +434,10 @@ function qVadeFor(){
 }
 
 /* ================= çözülen sorular arşivi ================= */
-function saveToArchive(sc, choice, risk, pnl, effPct, vadeLabel){
+function saveToArchive(sc, choice, risk, pnl, effPct, vadeLabel, storyOverride){
   let arc = []; try{ arc = JSON.parse(store.get("pk_archive")||"[]"); }catch(e){}
   arc.unshift({ n:sc.name, cat:sc.cat, t:sc.title, d:sc.date, v:vadeLabel||vadeOf(sc),
-    c:choice, r:risk, p:Math.round(pnl), pct:(typeof effPct==="number"?effPct:sc.pct), story:sc.story, les:sc.les, ts:Date.now() });
+    c:choice, r:risk, p:Math.round(pnl), pct:(typeof effPct==="number"?effPct:sc.pct), story:storyOverride||sc.story, les:sc.les, ts:Date.now() });
   if(arc.length > 300) arc.length = 300;
   store.set("pk_archive", JSON.stringify(arc));
 }
@@ -979,29 +981,100 @@ function startRound(mode){
   showScenario();
 }
 
+/* ================= gerçek veri modu (TradingView mum grafik) ================= */
+const VADE_ORDER = ["1g","1h","1a","3a","6a","1y"];
+const VADE_LBL = {"1g":"1 Gün","1h":"1 Hafta","1a":"1 Ay","3a":"3 Ay","6a":"6 Ay","1y":"1 Yıl"};
+function realOf(sc){ const r = window.PK_REAL && window.PK_REAL[sc.title]; return (r && r.pre && r.pre.length) ? r : null; }
+function fmtPrice(v){ return v>=1000 ? Math.round(v).toLocaleString("tr-TR") : v>=1 ? v.toFixed(2) : v.toFixed(4); }
+function effVade(r, chosenKey){
+  if(r.ret[chosenKey]!=null) return {key:chosenKey, pct:r.ret[chosenKey], fallback:false};
+  const ci = VADE_ORDER.indexOf(chosenKey);
+  for(let i=ci-1;i>=0;i--){ if(r.ret[VADE_ORDER[i]]!=null) return {key:VADE_ORDER[i], pct:r.ret[VADE_ORDER[i]], fallback:true}; }
+  for(let i=ci+1;i<VADE_ORDER.length;i++){ if(r.ret[VADE_ORDER[i]]!=null) return {key:VADE_ORDER[i], pct:r.ret[VADE_ORDER[i]], fallback:true}; }
+  return {key:chosenKey, pct:0, fallback:false, none:true};
+}
+function realInfoBullets(sc, r){ // olay-öncesi gerçek istatistikler (sonucu ele vermez)
+  const pre = r.pre, n = pre.length, last = pre[n-1].close, b = [];
+  b.push(`🏷️ ${sc.name} — ${r.baseDate} kapanış: <b>${fmtPrice(r.base)}</b> <span style="opacity:.7">(kaynak: ${r.src==='b'?'Binance':'Yahoo Finance'})</span>`);
+  if(n>=22){ const m=(last-pre[n-22].close)/pre[n-22].close*100; b.push(`📊 Son 1 ayda (olay öncesi): <b>${m>=0?'+':''}${m.toFixed(1)}%</b>`); }
+  if(n>=6){ const w=(last-pre[n-6].close)/pre[n-6].close*100; b.push(`📈 Son 1 haftada: <b>${w>=0?'+':''}${w.toFixed(1)}%</b>`); }
+  const hi=Math.max(...pre.map(p=>p.high)), lo=Math.min(...pre.map(p=>p.low));
+  b.push(`⛰️ Son ${n} günün aralığı: dip <b>${fmtPrice(lo)}</b> — zirve <b>${fmtPrice(hi)}</b>; şu an zirveye <b>%${((hi-last)/hi*100).toFixed(1)}</b> mesafede`);
+  const av = VADE_ORDER.filter(k=>r.ret[k]!=null).map(k=>VADE_LBL[k]).join(", ");
+  b.push(`⏳ Bu soruda gerçek verisi olan vadeler: <b>${av||"—"}</b>`);
+  return b;
+}
+function ensure5(list, sc){
+  const out = list.slice();
+  const extras = [`🗂️ Kategori: <b>${sc.cat}</b>`, `📅 Tarih: <b>${sc.date}</b>`, `📌 Varlık: <b>${sc.name}</b>`];
+  let i=0; while(out.length<5 && i<extras.length){ out.push(extras[i++]); }
+  return out;
+}
+function buildPostLine(r, effKey){
+  const pts = [{time:r.baseDate, value:r.base}];
+  for(const k of VADE_ORDER){
+    if(r.days[k] && r.ret[k]!=null){ pts.push({time:r.days[k], value:+(r.base*(1+r.ret[k]/100)).toFixed(4)}); }
+    if(k===effKey) break;
+  }
+  return pts;
+}
+function renderCandles(elId, pre, postLine){
+  const el = document.getElementById(elId);
+  if(!el || !window.LightweightCharts){ return; }
+  if(window.__chart){ try{ window.__chart.remove(); }catch(e){} window.__chart=null; }
+  const chart = LightweightCharts.createChart(el, {
+    width: el.clientWidth||480, height: 230,
+    layout:{ background:{type:'solid', color:'transparent'}, textColor:'#8b949e', fontSize:11 },
+    grid:{ vertLines:{color:'rgba(45,55,72,.35)'}, horzLines:{color:'rgba(45,55,72,.35)'} },
+    rightPriceScale:{ borderColor:'#2d3748' },
+    timeScale:{ borderColor:'#2d3748', fixLeftEdge:true, fixRightEdge:true },
+    crosshair:{ mode:0 }, handleScroll:false, handleScale:false,
+  });
+  const cs = chart.addCandlestickSeries({ upColor:'#3fb950', downColor:'#f85149', wickUpColor:'#3fb950', wickDownColor:'#f85149', borderVisible:false });
+  cs.setData(pre);
+  cs.setMarkers([{ time:pre[pre.length-1].time, position:'aboveBar', color:'#d29922', shape:'arrowDown', text:'OLAY' }]);
+  if(postLine && postLine.length>1){
+    const up = postLine[postLine.length-1].value>=postLine[0].value;
+    const ls = chart.addLineSeries({ color: up?'#3fb950':'#f85149', lineWidth:2, lastValueVisible:false, priceLineVisible:false, lineStyle:0 });
+    ls.setData(postLine);
+  }
+  chart.timeScale().fitContent();
+  window.__chart = chart;
+  if(window.__chartResize) window.removeEventListener('resize', window.__chartResize);
+  window.__chartResize = ()=>{ try{ chart.applyOptions({width: el.clientWidth}); chart.timeScale().fitContent(); }catch(e){} };
+  window.addEventListener('resize', window.__chartResize);
+}
+
 function showScenario(){
   const sc = round[state.i];
   state.qv = qVadeFor();
-  state.qv.pct = pctAt(sc, state.qv.days);
-  const s = buildSeries(sc, state.qv.pct);
+  const r = realOf(sc);
+  let chartHtml, bullets, effLabel, note = "";
+  if(r){
+    const ev = effVade(r, state.qv.key);
+    state.qv.pct = ev.pct; state.qv.effKey = ev.key; state.qv.real = true;
+    effLabel = VADE_LBL[ev.key] + (state.vadeMode==="rnd" ? " 🎲" : "");
+    if(ev.fallback) note = ` <span style="color:var(--gold)">(bu soruda ${VADE_LBL[state.qv.key]||state.qv.label} verisi yok → ${VADE_LBL[ev.key]} kullanıldı)</span>`;
+    chartHtml = `<div class="chart-head"><span class="sym">${sc.name}</span><span class="px">gerçek veri · olay tarihinde kesik 🕯️</span></div><div id="liveChart" style="height:230px"></div>`;
+    bullets = ensure5(sc.ctx.concat(realInfoBullets(sc, r)), sc);
+  } else {
+    state.qv.pct = pctAt(sc, state.qv.days); state.qv.real = false;
+    effLabel = state.qv.label;
+    const s = buildSeries(sc, state.qv.pct);
+    chartHtml = `<div class="chart-head"><span class="sym">${sc.name}</span><span class="px">temsili grafik</span></div>${chartSVG(s.pre, s.post, 0)}`;
+    bullets = ensure5(sc.ctx.concat(window.PK_DETAILS && window.PK_DETAILS[sc.title] ? window.PK_DETAILS[sc.title] : []), sc);
+  }
   renderProgress(); updateSidePanels(); updateTopicPanel(sc);
   screen.innerHTML = `
   <div class="card fade-in">
     <span class="tag hot">${sc.cat}</span>
     <span class="tag">Soru ${state.i+1}/${ROUND}</span>
-    <span class="tag" style="color:var(--blue); border-color:var(--blue)">⏳ Vade: ${state.qv.label}</span>
+    <span class="tag" style="color:var(--blue); border-color:var(--blue)">⏳ Vade: ${effLabel}</span>
     <h2>${sc.title}</h2>
-    <div class="datetime">📅 ${sc.date} · Pozisyon <b>${state.qv.label}</b> boyunca tutulacak; sonuç vade sonundaki fiyata göre hesaplanır</div>
-    <div class="chart-wrap">
-      <div class="chart-head"><span class="sym">${sc.name}</span><span class="px">olay öncesi grafik</span></div>
-      ${chartSVG(s.pre, s.post, 0)}
-    </div>
-    <ul class="ctx">${sc.ctx.map(c=>`<li>${c}</li>`).join("")}</ul>
-    ${(window.PK_DETAILS && window.PK_DETAILS[sc.title]) ? `
-    <details class="arc-item" style="margin-top:10px">
-      <summary><span style="font-weight:700">📰 Detaylı Durum</span><span class="arc-info">dönemin ortamı, varlığın konumu, piyasa duyarlılığı</span></summary>
-      <div class="arc-body"><ul class="ctx" style="margin-top:6px">${window.PK_DETAILS[sc.title].map(d=>`<li style="border-left-color:var(--gold)">${d}</li>`).join("")}</ul></div>
-    </details>` : ""}
+    <div class="datetime">📅 ${sc.date} · Pozisyon <b>${effLabel}</b> boyunca tutulacak; sonuç vade sonundaki gerçek fiyata göre.${note}</div>
+    <div class="chart-wrap">${chartHtml}</div>
+    <ul class="ctx">${bullets.map(c=>`<li>${c}</li>`).join("")}</ul>
+    ${(!r && window.PK_DETAILS && window.PK_DETAILS[sc.title]) ? "" : ""}
     <h2 style="margin-top:16px">❓ Pozisyon alır mısın?</h2>
     <div class="btn-row">
       <button class="btn-long" onclick="choose('long')">🟢 LONG<span class="btn-sub">Yükselir</span></button>
@@ -1009,6 +1082,7 @@ function showScenario(){
       <button class="btn-short" onclick="choose('short')">🔴 SHORT<span class="btn-sub">Düşer</span></button>
     </div>
   </div>`;
+  if(r) setTimeout(()=>renderCandles("liveChart", r.pre, null), 20);
 }
 
 function choose(dir){
@@ -1032,48 +1106,61 @@ function choose(dir){
 }
 function setRisk(r){ state.risk = r; resolve(); }
 
+function retLine(r){
+  return VADE_ORDER.filter(k=>r.ret[k]!=null).map(k=>
+    `${VADE_LBL[k]}: <b style="color:${r.ret[k]>=0?'var(--green-bright)':'var(--red-bright)'}">${r.ret[k]>=0?'+':''}${r.ret[k]}%</b>`).join(" · ");
+}
 function resolve(){
   const sc = round[state.i];
+  const r = realOf(sc);
   const qv = state.qv || {label:vadeOf(sc), days:vadeDays(vadeOf(sc)), pct:sc.pct};
-  const eff = (typeof qv.pct === "number") ? qv.pct : sc.pct;
-  const s = buildSeries(sc, eff);
+  let eff, effKey, effLabel, storyHtml, chartHtml, animate = null, moveTxt;
+
+  if(r){
+    const ev = (qv.effKey!=null) ? {key:qv.effKey, pct:qv.pct} : effVade(r, qv.key);
+    effKey = ev.key; eff = ev.pct; effLabel = VADE_LBL[effKey];
+    moveTxt = (eff>0?"+":"") + eff + "%";
+    chartHtml = `<div class="chart-head"><span class="sym">${sc.name}</span>
+      <span class="px" style="color:${eff>=0?'var(--green-bright)':'var(--red-bright)'};font-weight:700">${effLabel}: ${moveTxt}</span></div><div id="liveChart" style="height:230px"></div>`;
+    storyHtml = `<p class="muted" style="margin:4px 0 6px"><b>Gerçekleşen:</b> ${sc.name}, senin vaden <b>${effLabel}</b> sonunda
+      <b style="color:${eff>=0?'var(--green-bright)':'var(--red-bright)'}">${moveTxt}</b> ${eff>=0?'oldu':'oldu'}. Aynı olay her vadede farklı sonuç verir:</p>
+      <p class="muted" style="margin:0 0 10px; font-size:13px">📊 <b>Gerçek getiriler:</b> ${retLine(r)}</p>`;
+  } else {
+    eff = (typeof qv.pct === "number") ? qv.pct : sc.pct; effLabel = qv.label;
+    moveTxt = (eff>0?"+":"") + eff + "%";
+    const s = buildSeries(sc, eff);
+    chartHtml = `<div class="chart-head"><span class="sym">${sc.name}</span>
+      <span class="px" style="color:${eff>=0?'var(--green-bright)':'var(--red-bright)'};font-weight:700">${moveTxt}</span></div><div id="revealChart">${chartSVG(s.pre, s.post, 0)}</div>`;
+    storyHtml = `<p class="muted" style="margin:4px 0 8px">${sc.story}</p>`;
+    animate = s;
+  }
+
   const prevBal = state.balance;
   const stake = state.balance * state.risk;
   let pnl = 0;
   if(state.choice === "long")  pnl =  stake * eff/100;
   if(state.choice === "short") pnl = -stake * eff/100;
-  state.sumPct += prevBal > 0 ? (pnl/prevBal)*100 : 0; // soru başına getiri takibi
+  state.sumPct += prevBal > 0 ? (pnl/prevBal)*100 : 0;
   state.balance = Math.max(0, state.balance + pnl);
   state.history.push({choice:state.choice, risk:state.risk, pnl, pct:eff, sc});
-  saveToArchive(sc, state.choice, state.risk, pnl, eff, qv.label);
+  const archStory = r ? `Gerçekleşen (${effLabel}): ${moveTxt}. Tüm vadeler — ${retLine(r).replace(/<[^>]+>/g,"")}` : sc.story;
+  saveToArchive(sc, state.choice, state.risk, pnl, eff, effLabel, archStory);
   if(currentPlayer()) setPlayerBal(currentPlayer(), state.balance);
   updateChip(); renderProgress(); updateSidePanels();
 
   const dirTxt = state.choice==="long" ? "🟢 LONG" : state.choice==="short" ? "🔴 SHORT" : "⚪ PAS";
   const riskTxt = state.choice==="pass" ? "" : ` · pozisyon: bakiyenin %${Math.round(state.risk*100)}'i (${fmt$(stake)})`;
   const cls = pnl > 0 ? "win" : pnl < 0 ? "loss" : "flat";
-  const moveTxt = (eff>0?"+":"") + eff + "%";
   const last = state.i === ROUND-1;
   const lessonTxt = window.PK_LESSONS[sc.les] || "";
-  const d0 = vadeDays(vadeOf(sc));
-  const vadeNote = (qv.days !== d0)
-    ? `<p class="muted" style="margin:0 0 10px; font-size:12.5px">⏳ Olayın ilk tepkisi (${vadeOf(sc)}): <b style="color:${sc.pct>=0?'var(--green-bright)':'var(--red-bright)'}">${sc.pct>0?"+":""}${sc.pct}%</b>
-       · Senin vaden (${qv.label}) sonunda: <b style="color:${eff>=0?'var(--green-bright)':'var(--red-bright)'}">${moveTxt}</b>
-       <span style="opacity:.7">(uzun vade sonuçları ilk tepki üzerine yaklaşık modellenir)</span></p>`
-    : "";
 
   screen.innerHTML = `
   <div class="card fade-in">
     <span class="tag">${sc.cat}</span>
-    <span class="tag" style="color:var(--blue); border-color:var(--blue)">⏳ ${qv.label}</span>
+    <span class="tag" style="color:var(--blue); border-color:var(--blue)">⏳ ${effLabel}</span>
     <h2>Ne oldu?</h2>
-    <div class="chart-wrap">
-      <div class="chart-head"><span class="sym">${sc.name}</span>
-        <span class="px" style="color:${eff>=0?'var(--green-bright)':'var(--red-bright)'};font-weight:700">${moveTxt}</span></div>
-      <div id="revealChart">${chartSVG(s.pre, s.post, 0)}</div>
-    </div>
-    <p class="muted" style="margin:4px 0 6px">${sc.story}</p>
-    ${vadeNote}
+    <div class="chart-wrap">${chartHtml}</div>
+    ${storyHtml}
     <div class="result-banner ${cls}">
       <span class="big">${pnl>0?"+":""}${pnl===0?"±$0":fmt$(pnl)}</span>
       Kararın: ${dirTxt}${riskTxt}
@@ -1083,14 +1170,18 @@ function resolve(){
       ${last ? "Sonuçları ve Ders Özetini Gör 🏁" : "Sıradaki Soru →"}</button>
   </div>`;
 
-  let count = 0;
-  const iv = setInterval(()=>{
-    count++;
-    const el = document.getElementById("revealChart");
-    if(!el){ clearInterval(iv); return; }
-    el.innerHTML = chartSVG(s.pre, s.post, count);
-    if(count >= s.post.length) clearInterval(iv);
-  }, 90);
+  if(r){
+    setTimeout(()=>renderCandles("liveChart", r.pre, buildPostLine(r, effKey)), 20);
+  } else if(animate){
+    let count = 0;
+    const iv = setInterval(()=>{
+      count++;
+      const el = document.getElementById("revealChart");
+      if(!el){ clearInterval(iv); return; }
+      el.innerHTML = chartSVG(animate.pre, animate.post, count);
+      if(count >= animate.post.length) clearInterval(iv);
+    }, 90);
+  }
 }
 
 function nextScenario(){ state.i++; showScenario(); }
