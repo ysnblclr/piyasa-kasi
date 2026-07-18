@@ -309,11 +309,11 @@
   </aside>
 </div>
 
-<script src="data1.js?v=8"></script>
-<script src="data2.js?v=8"></script>
-<script src="data3.js?v=8"></script>
-<script src="data4.js?v=8"></script>
-<script src="data5.js?v=8"></script>
+<script src="data1.js?v=9"></script>
+<script src="data2.js?v=9"></script>
+<script src="data3.js?v=9"></script>
+<script src="data4.js?v=9"></script>
+<script src="data5.js?v=9"></script>
 <script>
 /* ================= havuz + tur kurulumu ================= */
 const SCENARIOS_ALL = window.PK_A.concat(window.PK_B, window.PK_C, window.PK_D);
@@ -710,9 +710,24 @@ let state = { i:0, balance:START_BAL, roundStart:START_BAL, history:[], choice:n
 
 /* ================= küresel sıralama (sunucu) ================= */
 function getReg(){ try{ return JSON.parse(store.get("pk_reg")||"null"); }catch(e){ return null; } }
+/* Hem Vercel (/api/lb) hem Netlify (/.netlify/functions/api) ile çalışır:
+   ilk çağrıda hangisi yanıt veriyorsa onu seçer. */
+let __apiBase = null;
+async function apiBase(){
+  if(__apiBase) return __apiBase;
+  for(const base of ["/api/lb", "/.netlify/functions/api"]){
+    try{
+      const r = await fetch(base+"?op=diag");
+      if(r.ok){ const j = await r.json(); if(j && j.ok){ __apiBase = base; return base; } }
+    }catch(e){}
+  }
+  __apiBase = "/api/lb"; // varsayılan (Vercel)
+  return __apiBase;
+}
 async function apiCall(op, body){
+  const base = await apiBase();
   const opts = body ? {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)} : {};
-  const r = await fetch("/.netlify/functions/api?op="+op, opts);
+  const r = await fetch(base+"?op="+op, opts);
   return await r.json();
 }
 function getPending(){ try{ return JSON.parse(store.get("pk_pending")||'{"games":0,"qs":0,"sumPct":0}'); }catch(e){ return {games:0,qs:0,sumPct:0}; } }
