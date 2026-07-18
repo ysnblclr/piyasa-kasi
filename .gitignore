@@ -1,0 +1,13 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Netlify
+.netlify/
+
+# geçici / deploy yardımcıları
+*.zip
+*-b64.txt
+pk-c*.txt
+gz-b64.txt

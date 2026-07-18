@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piyasa Kası 💪📈</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b22; --card2:#1c2330; --border:#2d3748;
+    --text:#e6edf3; --muted:#8b949e;
+    --green:#2ea44f; --green-bright:#3fb950; --red:#da3633; --red-bright:#f85149;
+    --gold:#d29922; --blue:#388bfd;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh;
+  }
+  .layout{
+    display:grid; grid-template-columns:280px minmax(0,620px) 320px;
+    gap:18px; max-width:1280px; margin:0 auto; padding:16px; align-items:start;
+  }
+  aside{position:sticky; top:16px;}
+
+  /* ---------- paneller ---------- */
+  .panel{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:16px; margin-bottom:14px;
+  }
+  .panel h3{font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-bottom:10px;}
+
+  .big-balance{font-size:32px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .big-balance.up{color:var(--green-bright);}
+  .big-balance.down{color:var(--red-bright);}
+  .balance-sub{font-size:12px; color:var(--muted); margin-top:4px;}
+
+  .scorebar{display:flex; gap:8px; margin-bottom:10px;}
+  .scorebox{flex:1; text-align:center; background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:6px 4px;}
+  .scorebox .v{font-size:18px; font-weight:800;}
+  .scorebox .l{font-size:10px; color:var(--muted); text-transform:uppercase;}
+
+  .qlist{list-style:none; font-size:13px;}
+  .qlist li{
+    display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; margin-bottom:3px;
+    background:var(--card2); border:1px solid transparent;
+  }
+  .qlist li.current{border-color:var(--blue);}
+  .qlist li.pending{opacity:.45;}
+  .qlist .mark{width:18px; text-align:center; font-weight:800;}
+  .qlist .mark.ok{color:var(--green-bright);}
+  .qlist .mark.bad{color:var(--red-bright);}
+  .qlist .mark.mid{color:var(--muted);}
+  .qlist .qname{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .qlist .qpnl{font-variant-numeric:tabular-nums; font-size:12px; color:var(--muted);}
+  .qlist .qpnl.pos{color:var(--green-bright);}
+  .qlist .qpnl.neg{color:var(--red-bright);}
+
+  /* sağ panel: konu rehberi */
+  .topic-title{font-size:16px; font-weight:800; margin-bottom:8px;}
+  .topic-desc{font-size:13px; line-height:1.55; color:var(--muted); margin-bottom:12px;}
+  .topic-points{list-style:none;}
+  .topic-points li{
+    font-size:12.5px; line-height:1.5; padding:7px 9px; margin-bottom:6px;
+    background:var(--card2); border-left:3px solid var(--gold); border-radius:0 8px 8px 0;
+  }
+
+  /* ---------- üst menü ---------- */
+  .topnav{
+    position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:12px;
+    background:var(--card); border-bottom:1px solid var(--border); padding:10px 16px; flex-wrap:wrap;
+  }
+  .nav-brand{font-size:18px; font-weight:800; letter-spacing:-.5px; white-space:nowrap;}
+  .nav-brand span{color:var(--green-bright);}
+  .nav-items{display:flex; gap:6px; overflow-x:auto; flex:1; min-width:0;}
+  .nav-btn{
+    background:var(--card2); border:1px solid var(--border); color:var(--text);
+    border-radius:9px; font-size:13px; font-weight:700; padding:9px 12px; white-space:nowrap; cursor:pointer;
+    transition:filter .15s;
+  }
+  .nav-btn:hover{border-color:var(--blue);}
+  .nav-btn.active{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .nav-btn.auth{background:transparent;}
+  .nav-right{display:flex; align-items:center; gap:10px; margin-left:auto;}
+  @media(max-width:1100px){ .nav-items{flex:1 1 100%; order:3;} }
+
+  /* ---------- ilgi alanı ---------- */
+  .int-row{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background:var(--card2); border:1px solid var(--border); border-radius:10px;
+    padding:12px; margin-bottom:8px; color:var(--text); cursor:pointer;
+  }
+  .int-row.on{border-color:var(--green); background:rgba(46,164,79,.08);}
+  .int-check{
+    width:22px; height:22px; flex:0 0 auto; border-radius:6px; border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center; color:var(--green-bright); font-weight:800; font-size:14px;
+  }
+  .int-row.on .int-check{border-color:var(--green);}
+  .int-txt{flex:1; font-size:14px; line-height:1.35;}
+  .int-cnt{flex:0 0 auto; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums;}
+
+  /* ---------- orta kolon ---------- */
+  header{display:flex; align-items:center; justify-content:space-between; padding:4px 0 14px;}
+  .logo{font-size:20px; font-weight:800; letter-spacing:-.5px;}
+  .logo span{color:var(--green-bright);}
+  .balance-chip{
+    background:var(--card); border:1px solid var(--border); border-radius:99px;
+    padding:6px 14px; font-weight:700; font-variant-numeric:tabular-nums; font-size:15px;
+    transition:transform .3s;
+  }
+  .balance-chip.up{color:var(--green-bright); border-color:var(--green);}
+  .balance-chip.down{color:var(--red-bright); border-color:var(--red);}
+  .balance-chip.pulse{transform:scale(1.12);}
+
+  .progress{display:flex; gap:4px; margin-bottom:14px;}
+  .progress .seg{flex:1; height:4px; border-radius:2px; background:var(--border);}
+  .progress .seg.done-win{background:var(--green-bright);}
+  .progress .seg.done-loss{background:var(--red-bright);}
+  .progress .seg.done-flat{background:var(--muted);}
+  .progress .seg.current{background:var(--blue);}
+
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:18px; margin-bottom:14px;
+  }
+  .tag{
+    display:inline-block; font-size:11px; font-weight:700; letter-spacing:.5px;
+    text-transform:uppercase; padding:3px 10px; border-radius:99px; margin-right:6px; margin-bottom:4px;
+    background:var(--card2); border:1px solid var(--border); color:var(--muted);
+  }
+  .tag.hot{color:var(--gold); border-color:var(--gold);}
+  h1{font-size:25px; line-height:1.25; margin:12px 0 6px;}
+  h2{font-size:19px; line-height:1.3; margin:10px 0 4px;}
+  .datetime{color:var(--muted); font-size:13px; margin-bottom:12px;}
+  .muted{color:var(--muted); font-size:14px; line-height:1.55;}
+
+  .chart-wrap{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:10px 6px 4px; margin:12px 0;}
+  .chart-head{display:flex; justify-content:space-between; align-items:baseline; padding:0 8px 6px;}
+  .chart-head .sym{font-weight:800; font-size:15px;}
+  .chart-head .px{font-variant-numeric:tabular-nums; font-size:14px; color:var(--muted);}
+  svg{display:block; width:100%; height:auto;}
+
+  .ctx{list-style:none; margin-top:8px;}
+  .ctx li{
+    padding:8px 10px; margin-bottom:6px; background:var(--card2);
+    border-left:3px solid var(--blue); border-radius:0 8px 8px 0;
+    font-size:14px; line-height:1.45;
+  }
+
+  .btn-row{display:flex; gap:10px; margin-top:14px;}
+  button{
+    font-family:inherit; cursor:pointer; border:none; border-radius:10px;
+    font-size:15px; font-weight:700; padding:14px 10px; color:#fff;
+    transition:transform .08s, filter .15s;
+  }
+  button:active{transform:scale(.96);}
+  button:hover{filter:brightness(1.15);}
+  button:focus-visible{outline:2px solid var(--blue); outline-offset:2px;}
+  .btn-long{flex:1; background:var(--green);}
+  .btn-pass{flex:1; background:#30363d;}
+  .btn-short{flex:1; background:var(--red);}
+  .btn-primary{width:100%; background:var(--blue); margin-top:14px;}
+  .btn-risk{flex:1; background:var(--card2); border:1px solid var(--border);}
+  .btn-risk:hover{border-color:var(--blue);}
+  .btn-sub{font-size:11px; font-weight:400; display:block; margin-top:3px; opacity:.75;}
+
+  .result-banner{
+    text-align:center; border-radius:12px; padding:18px; margin:12px 0;
+    font-size:17px; font-weight:800; line-height:1.4;
+  }
+  .result-banner .big{font-size:34px; display:block; margin-bottom:4px; font-variant-numeric:tabular-nums;}
+  .result-banner.win{background:rgba(46,164,79,.12); border:1px solid var(--green); color:var(--green-bright);}
+  .result-banner.loss{background:rgba(218,54,51,.12); border:1px solid var(--red); color:var(--red-bright);}
+  .result-banner.flat{background:var(--card2); border:1px solid var(--border); color:var(--muted);}
+  .lesson{
+    background:rgba(210,153,34,.08); border:1px solid rgba(210,153,34,.4);
+    border-radius:10px; padding:12px 14px; font-size:14px; line-height:1.55; margin-top:10px;
+  }
+  .lesson b{color:var(--gold);}
+
+  .final-emoji{font-size:64px; text-align:center; margin:10px 0;}
+  .final-title{text-align:center; font-size:24px; font-weight:800; margin-bottom:4px;}
+  .final-balance{text-align:center; font-size:40px; font-weight:800; font-variant-numeric:tabular-nums; margin:10px 0;}
+  .stats-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin:14px 0;}
+  .stat{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:10px; text-align:center;}
+  .stat .v{font-size:20px; font-weight:800;}
+  .stat .l{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:2px;}
+
+  .lesson-summary{margin-top:14px;}
+  .lesson-summary h3{font-size:15px; margin-bottom:10px; color:var(--gold);}
+  .lesson-item{
+    background:rgba(210,153,34,.07); border:1px solid rgba(210,153,34,.35);
+    border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13.5px; line-height:1.55;
+  }
+  .lesson-item .src{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.4px;}
+  .lesson-item b{color:var(--gold);}
+
+  /* sıralama */
+  .lb-list{list-style:none;}
+  .lb-row{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; margin-bottom:3px; background:var(--card2); font-size:13px; border:1px solid transparent;}
+  .lb-row.me{border-color:var(--gold);}
+  .lb-rank{width:18px; text-align:center; font-weight:800; color:var(--muted);}
+  .lb-name{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700;}
+  .lb-ret{font-variant-numeric:tabular-nums; font-weight:700; font-size:12.5px;}
+  .lb-ret.pos{color:var(--green-bright);}
+  .lb-ret.neg{color:var(--red-bright);}
+  .lb-bal{font-variant-numeric:tabular-nums; font-size:11.5px; color:var(--muted);}
+  .name-input{
+    width:100%; background:var(--card2); border:1px solid var(--border); border-radius:10px;
+    color:var(--text); font-family:inherit; font-size:16px; font-weight:700; padding:13px 14px; margin-top:8px;
+  }
+  .name-input:focus{outline:2px solid var(--blue); border-color:var(--blue);}
+  .player-chipbtn{
+    display:inline-block; margin:4px 6px 0 0; padding:8px 14px; border-radius:99px;
+    background:var(--card2); border:1px solid var(--border); color:var(--text); font-size:14px;
+  }
+  .player-chipbtn:hover{border-color:var(--blue);}
+
+  /* arşiv */
+  .arc-item{background:var(--card2); border:1px solid var(--border); border-radius:10px; margin-bottom:6px;}
+  .arc-item summary{
+    display:flex; align-items:center; gap:8px; padding:9px 12px; cursor:pointer;
+    font-size:13.5px; list-style:none;
+  }
+  .arc-item summary::-webkit-details-marker{display:none;}
+  .arc-item[open]{border-color:var(--blue);}
+  .arc-name{font-weight:700; flex:0 0 auto;}
+  .arc-info{color:var(--muted); font-size:12px; flex:1;}
+  .arc-pnl{font-variant-numeric:tabular-nums; font-weight:700; font-size:13px;}
+  .arc-body{padding:4px 12px 12px; border-top:1px solid var(--border); font-size:13.5px;}
+
+  footer{margin:8px 0 40px; text-align:center; font-size:12px; color:var(--muted); line-height:1.6;}
+  .fade-in{animation:fadeIn .4s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+  @media (prefers-reduced-motion: reduce){ .fade-in{animation:none;} .balance-chip{transition:none;} }
+
+  /* ---------- responsive ---------- */
+  @media (max-width:1100px){
+    .layout{grid-template-columns:1fr; max-width:640px;}
+    aside{position:static;}
+    .left-panels{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+    .left-panels .panel{margin-bottom:0;}
+    .qlist{max-height:180px; overflow-y:auto;}
+    .order-right{order:3;}
+    .order-center{order:2;}
+    .order-left{order:1;}
+  }
+  @media (max-width:560px){
+    .left-panels{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="nav-brand">Piyasa <span>Kası</span> 💪</div>
+  <div class="nav-items">
+    <button class="nav-btn" data-v="oyna" onclick="navGo('oyna')">🏠 Oyna</button>
+    <button class="nav-btn" data-v="hesap" onclick="navGo('hesap')">👤 Hesabım</button>
+    <button class="nav-btn" data-v="sira" onclick="navGo('sira')">🏆 Sıralamalar</button>
+    <button class="nav-btn" data-v="ilgi" onclick="navGo('ilgi')">🎯 İlgi Alanım</button>
+    <button class="nav-btn" data-v="disiplin" onclick="navGo('disiplin')">🧠 Disiplin Kazan</button>
+  </div>
+  <div class="nav-right">
+    <div class="balance-chip" id="balanceChip">$10.000</div>
+    <span id="navAuth"></span>
+  </div>
+</nav>
+<div class="layout">
+
+  <!-- ============ SOL PANEL ============ -->
+  <aside class="order-left">
+    <div class="left-panels">
+      <div class="panel">
+        <h3>💰 Mevcut Bakiye</h3>
+        <div class="big-balance" id="sideBalance">$10.000</div>
+        <div class="balance-sub" id="sideBalanceSub">Başlangıç: $10.000</div>
+      </div>
+      <div class="panel">
+        <h3>🎯 Doğru / Yanlış</h3>
+        <div class="scorebar">
+          <div class="scorebox"><div class="v" style="color:var(--green-bright)" id="scoreOk">0</div><div class="l">Doğru</div></div>
+          <div class="scorebox"><div class="v" style="color:var(--red-bright)" id="scoreBad">0</div><div class="l">Yanlış</div></div>
+          <div class="scorebox"><div class="v" id="scoreMid">0</div><div class="l">Pas</div></div>
+        </div>
+        <ul class="qlist" id="qlist"></ul>
+      </div>
+      <div class="panel">
+        <h3>🏆 Bu Cihazdaki Sıralama</h3>
+        <ul class="lb-list" id="lbList"></ul>
+        <button class="btn-pass" style="width:100%; margin-top:8px; padding:9px; font-size:13px" onclick="showGlobalBoard('intro')">🌍 Küresel Sıralama</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ ORTA ============ -->
+  <main class="order-center">
+    <div class="progress" id="progress" style="margin-top:16px"></div>
+    <div id="screen"></div>
+    <footer>
+      Bu site, <b>yatırım kasanızı ve anlık trade kasanızı güçlendirmek</b> için yapılmıştır.<br>
+      Senaryolar gerçek geçmiş piyasa olaylarına dayanır; fiyat ve oran verileri yaklaşıktır.<br>
+      ⚠️ Yatırım tavsiyesi değildir — bu bir eğitim ve eğlence oyunudur.
+    </footer>
+  </main>
+
+  <!-- ============ SAĞ PANEL ============ -->
+  <aside class="order-right">
+    <div class="panel" id="topicPanel"></div>
+  </aside>
+</div>
+
+<script src="data1.js?v=8"></script>
+<script src="data2.js?v=8"></script>
+<script src="data3.js?v=8"></script>
+<script src="data4.js?v=8"></script>
+<script src="data5.js?v=8"></script>
+<script>
+/* ================= havuz + tur kurulumu ================= */
+const SCENARIOS_ALL = window.PK_A.concat(window.PK_B, window.PK_C, window.PK_D);
+const ROUND = 10;
+const START_BAL = 10000;
+
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
+
+function yearOf(sc){ const m = sc.date.match(/20\d\d/); return m ? +m[0] : 2000; }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const RECENT_PER_ROUND = 6; // her turda ~6 soru 2025+ döneminden
+
+/* ================= ilgi alanları (varlık sınıfı) ================= */
+const AREAS = [
+  ["tech",   "🤖 Teknoloji & Yapay Zekâ", "Nvidia, Apple, Tesla, AMD, çip ve yazılım hisseleri"],
+  ["endeks", "📊 Endeksler & Makro",       "S&P 500, Nasdaq, FED kararları, enflasyon verileri"],
+  ["kripto", "₿ Kripto",                   "Bitcoin, Ethereum, altcoinler, kripto borsaları"],
+  ["emtia",  "🥇 Emtia",                   "Altın, petrol, gümüş, bakır, tarım ürünleri"],
+  ["stock",  "🏢 Diğer Hisseler",          "Sağlık, sanayi, tüketim, finans, otomotiv"],
+  ["ipo",    "🔔 Halka Arzlar",            "SpaceX, Circle, Figma gibi yeni halka açılanlar"],
+  ["meme",   "🎢 Meme & Spekülatif",       "GameStop, AMC gibi sosyal medya hisseleri"],
+  ["tr",     "🇹🇷 Türkiye",                 "BIST, Dolar/TL, banka endeksi, gram altın"]
+];
+function interestOf(sc){
+  const n = (sc.name || "").toLowerCase(), t = sc.t;
+  if(t==="tr" || /dolar\/tl|bist|banka endeksi|xbank|türk hava|gram alt/.test(n)) return "tr";
+  if(t==="kripto" || /bitcoin|ethereum|solana|xrp|dogecoin|luna|coinbase|microstrategy/.test(n)) return "kripto";
+  if(t==="emtia" || /alt[ıi]n|güm[üu]ş|petrol|brent|wti|doğalgaz|bak[ıi]r|kakao|uranyum|lityum|buğday|platin/.test(n)) return "emtia";
+  if(t==="meme" || /gamestop|amc|bed bath|nikola|hertz|robinhood/.test(n)) return "meme";
+  if(t==="ipo" || /spacex/.test(n)) return "ipo";
+  if(t==="endeks" || t==="fed" || t==="makro" || /s&p|nasdaq|dow|russell|dax|nikkei|kospi|stoxx|dolar endeksi|xiv|bölgesel bank|tahvil/.test(n)) return "endeks";
+  if(/nvidia|amd|meta|google|alphabet|microsoft|apple|amazon|palantir|super micro|broadcom|arm|tsmc|asml|intel|micron|dell|oracle|salesforce|adobe|snowflake|crowdstrike|netflix|tesla|paypal|shopify|zoom|docusign|peloton|qualcomm|vertiv|sk hynix|snap/.test(n)) return "tech";
+  return "stock";
+}
+function getInterests(){ try{ return JSON.parse(store.get("pk_interests")||"[]"); }catch(e){ return []; } }
+function setInterests(a){ store.set("pk_interests", JSON.stringify(a)); }
+function toggleInterest(k){ const a=getInterests(); const i=a.indexOf(k); if(i>=0)a.splice(i,1); else a.push(k); setInterests(a); showInterests(); }
+
+function pickRound(){
+  const ints = getInterests();
+  const allow = i => !ints.length || ints.includes(interestOf(SCENARIOS_ALL[i]));
+  const allAllowed = SCENARIOS_ALL.map((s,i)=>i).filter(allow);
+  let used = [];
+  try{ used = JSON.parse(store.get("pk_used") || "[]"); }catch(e){ used = []; }
+  let pool = allAllowed.filter(i=>!used.includes(i));
+  if(pool.length < ROUND){ // filtre içindeki kullanılmışları sıfırla
+    used = used.filter(i=>!allow(i));
+    pool = allAllowed.slice();
+  }
+  const recent = shuffle(pool.filter(i=>yearOf(SCENARIOS_ALL[i]) >= 2025));
+  const older  = shuffle(pool.filter(i=>yearOf(SCENARIOS_ALL[i]) < 2025));
+  const chosen = [];
+  while(chosen.length < ROUND && (recent.length || older.length)){
+    if(chosen.length < RECENT_PER_ROUND && recent.length) chosen.push(recent.pop());
+    else if(older.length) chosen.push(older.pop());
+    else if(recent.length) chosen.push(recent.pop());
+  }
+  // çok küçük kategori seçildiyse tekrar ederek 10'a tamamla
+  let gi = 0;
+  const src = shuffle(allAllowed.slice());
+  while(chosen.length < ROUND && src.length){ chosen.push(src[gi % src.length]); gi++; }
+  shuffle(chosen);
+  store.set("pk_used", JSON.stringify(used.concat(chosen)));
+  return chosen.map(i=>SCENARIOS_ALL[i]);
+}
+
+/* vade: senaryoda yoksa hikâyeden çıkar */
+function vadeOf(sc){
+  if(sc.vade) return sc.vade;
+  const s = sc.story || "";
+  if(/ayda|ay i[çc]inde|aylar|ay boyu|yaz boyu|y[ıi]l boyu|2 ay|3 ay/i.test(s)) return "1-3 ay";
+  if(/hafta/i.test(s)) return "1-2 hafta";
+  return "1 gün";
+}
+
+/* ================= vade sistemi ================= */
+const VADES = [
+  ["1g","1 Gün",1], ["1h","1 Hafta",5], ["1a","1 Ay",21],
+  ["3a","3 Ay",63], ["6a","6 Ay",126], ["1y","1 Yıl",252]
+];
+function vadeDays(v){
+  const s = (v||"1 gün").toLowerCase();
+  if(s.includes("yıl")) return 252;
+  if(s.includes("6 ay")) return 126;
+  if(s.includes("3 ay") || s.includes("2 ay") || s.includes("2-3")) return 63;
+  if(s.includes("ay")) return 21;
+  if(s.includes("hafta")) return 5;
+  return 1;
+}
+/* Seçilen vadedeki fiyat değişimi:
+   - Olayın doğal vadesine eşit/kısa ise: gerçek ilk tepkinin kısmi/tam hâli.
+   - Daha uzunsa: gerçek tepki + senaryoya sabitlenmiş (deterministik) devam/geri-dönüş modeli + piyasa sürüklenmesi. */
+function pctAt(sc, days){
+  const d0 = vadeDays(vadeOf(sc));
+  const p0 = sc.pct;
+  if(days <= d0) return Math.round(p0 * Math.pow(days/d0, 0.6) * 10) / 10;
+  const idx = SCENARIOS_ALL.indexOf(sc);
+  const rnd = mulberry32(1000 + idx*7 + days)();
+  const cont = (rnd - 0.35) * 1.6;                  // devam (+) / geri dönüş (-) eğilimi
+  const stretch = Math.min(Math.sqrt(days/d0) - 1, 2.2);
+  let p = p0 + p0*cont*stretch + 8*((days - d0)/252); // ~%8/yıl piyasa sürüklenmesi
+  if(p0 <= -60) p = Math.min(p, p0 + 10);            // yapısal çöküşler geri dönmez
+  p = Math.max(-92, Math.min(400, p));
+  return Math.round(p*10)/10;
+}
+function qVadeFor(){
+  if(state.vadeMode === "rnd"){
+    const v = VADES[Math.floor(Math.random()*VADES.length)];
+    return {key:v[0], label:v[1]+" 🎲", days:v[2]};
+  }
+  const v = VADES.find(x=>x[0]===state.vadeMode) || VADES[0];
+  return {key:v[0], label:v[1], days:v[2]};
+}
+
+/* ================= çözülen sorular arşivi ================= */
+function saveToArchive(sc, choice, risk, pnl, effPct, vadeLabel){
+  let arc = []; try{ arc = JSON.parse(store.get("pk_archive")||"[]"); }catch(e){}
+  arc.unshift({ n:sc.name, cat:sc.cat, t:sc.title, d:sc.date, v:vadeLabel||vadeOf(sc),
+    c:choice, r:risk, p:Math.round(pnl), pct:(typeof effPct==="number"?effPct:sc.pct), story:sc.story, les:sc.les, ts:Date.now() });
+  if(arc.length > 300) arc.length = 300;
+  store.set("pk_archive", JSON.stringify(arc));
+}
+function archiveCount(){ try{ return JSON.parse(store.get("pk_archive")||"[]").length; }catch(e){ return 0; } }
+
+function showArchive(fromFinal){
+  window.__arcBack = fromFinal ? "final" : "intro";
+  let arc = []; try{ arc = JSON.parse(store.get("pk_archive")||"[]"); }catch(e){}
+  updateTopicPanel(null);
+  const items = arc.map(a=>{
+    const dirTxt = a.c==="long" ? "🟢 LONG" : a.c==="short" ? "🔴 SHORT" : "⚪ PAS";
+    const vd = a.c==="pass" ? (Math.abs(a.pct)<4 ? "ok" : "mid") : (a.p>0 ? "ok" : a.p<0 ? "bad" : "mid");
+    const mark = vd==="ok" ? "✓" : vd==="bad" ? "✗" : "–";
+    const markColor = vd==="ok" ? "var(--green-bright)" : vd==="bad" ? "var(--red-bright)" : "var(--muted)";
+    const pnlTxt = a.c==="pass" ? "±$0" : (a.p>0?"+":"")+fmt$(a.p);
+    const riskTxt = a.c==="pass" ? "" : ` · %${Math.round(a.r*100)} risk`;
+    return `<details class="arc-item">
+      <summary><span style="color:${markColor};font-weight:800">${mark}</span>
+        <span class="arc-name">${a.n}</span>
+        <span class="arc-info">${dirTxt}${riskTxt}</span>
+        <span class="arc-pnl" style="color:${markColor}">${pnlTxt}</span></summary>
+      <div class="arc-body">
+        <div class="muted" style="margin-bottom:6px"><b style="color:var(--text)">${a.t}</b><br>📅 ${a.d} · ⏳ Vade: ${a.v} · Gerçekleşen hareket: <b style="color:${a.pct>=0?'var(--green-bright)':'var(--red-bright)'}">${a.pct>0?"+":""}${a.pct}%</b></div>
+        <p class="muted" style="margin-bottom:8px">${a.story}</p>
+        <div class="lesson">📚 <b>Ders:</b> ${window.PK_LESSONS[a.les]||""}</div>
+      </div>
+    </details>`;
+  }).join("");
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">📖 Çözülen Sorular</span>
+    <span class="tag">${arc.length} kayıt</span>
+    <h2>Geçmiş kararların</h2>
+    <p class="muted" style="margin-bottom:10px">Bir soruya tıklayarak olayın ne olduğunu ve dersini tekrar okuyabilirsin. (En yeni en üstte)</p>
+    ${items || '<p class="muted">Henüz çözülmüş soru yok — ilk oyununu oyna!</p>'}
+    <button class="btn-primary" onclick="backFromArchive()">← Geri Dön</button>
+  </div>`;
+}
+function backFromArchive(){ if(window.__arcBack==="final") showFinal(); else showIntro(); }
+
+/* ================= üst menü ================= */
+function setView(v){
+  window.__view = v;
+  document.querySelectorAll(".nav-btn[data-v]").forEach(b=>b.classList.toggle("active", b.dataset.v===v));
+}
+function updateNavAuth(){
+  const el = document.getElementById("navAuth"); if(!el) return;
+  const reg = getReg();
+  el.innerHTML = reg
+    ? `<button class="nav-btn auth" onclick="doLogout()">👤 ${escapeHtml(reg.nick)} · Çıkış</button>`
+    : `<button class="nav-btn auth" onclick="showLogin('nav')">Giriş Yap</button>`;
+}
+function navGo(v){
+  if(v==="oyna"){
+    if(!currentPlayer()){ showNameScreen(); return; }
+    if(state.qv && state.history.length<ROUND && !state.finalized) showScenario();
+    else showIntro();
+  }
+  else if(v==="hesap") showAccount();
+  else if(v==="sira") showGlobalBoard("nav");
+  else if(v==="ilgi") showInterests();
+  else if(v==="disiplin") showDiscipline();
+}
+
+/* ---- Hesabım ---- */
+function showAccount(){
+  setView("hesap"); updateTopicPanel(null);
+  const cur = currentPlayer();
+  if(!cur){ showLogin("nav"); return; }
+  const reg = getReg();
+  const pdata = getPlayers()[cur] || {bal:START_BAL, games:0};
+  const ret = (state.balance/START_BAL - 1) * 100;
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">👤 Hesabım</span>
+    <h2>${escapeHtml(reg ? reg.nick : cur)}</h2>
+    <p class="muted" style="margin-top:6px">${reg
+      ? '🌍 <b style="color:var(--green-bright)">Kayıtlı</b> — küresel sıralamada yarışıyorsun.'
+      : '👤 Misafir — sadece bu cihazda. Küresel sıralamaya girmek için kaydol.'}</p>
+    <div class="stats-grid" style="margin-top:14px">
+      <div class="stat"><div class="v" style="color:${ret>=0?'var(--green-bright)':'var(--red-bright)'}">${fmt$(state.balance)}</div><div class="l">Bakiye</div></div>
+      <div class="stat"><div class="v" style="color:${ret>=0?'var(--green-bright)':'var(--red-bright)'}">${ret>=0?'+':''}${ret.toFixed(1)}%</div><div class="l">Toplam Kâr</div></div>
+      <div class="stat"><div class="v">${pdata.games||0}</div><div class="l">Oyun</div></div>
+    </div>
+    ${reg
+      ? `<button class="btn-pass" style="width:100%;margin-top:12px" onclick="doLogout()">🚪 Çıkış Yap</button>`
+      : `<button class="btn-primary" style="background:var(--green)" onclick="showRegister('nav')">🌍 Kaydol ve Sıralamaya Gir</button>`}
+    <button class="btn-pass" style="width:100%;margin-top:10px" onclick="resetBankroll()">🔄 Kasayı Sıfırla ($10.000)</button>
+    <button class="btn-pass" style="width:100%;margin-top:10px" onclick="switchPlayer()">👥 Oyuncu Değiştir</button>
+    <button class="btn-primary" style="margin-top:10px" onclick="showIntro()">← Oyuna Dön</button>
+  </div>`;
+}
+
+/* ---- İlgi Alanım ---- */
+function showInterests(){
+  setView("ilgi"); updateTopicPanel(null);
+  const sel = getInterests();
+  const cnt = k => SCENARIOS_ALL.filter(s=>interestOf(s)===k).length;
+  const selCount = sel.length===0 ? SCENARIOS_ALL.length : SCENARIOS_ALL.filter(s=>sel.includes(interestOf(s))).length;
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">🎯 İlgi Alanım</span>
+    <h2>Sorular hangi alanlardan gelsin?</h2>
+    <p class="muted" style="margin-top:8px">İlgilendiğin alanları seç — sorular yalnız onlardan gelir. Hiçbirini seçmezsen <b style="color:var(--text)">tüm alanlar</b> aktif olur. (Sorular zaten ağırlıklı olarak güncel dönemlerden gelir.)</p>
+    <div style="margin-top:12px">
+      ${AREAS.map(a=>{ const on = sel.includes(a[0]);
+        return `<button class="int-row ${on?'on':''}" onclick="toggleInterest('${a[0]}')">
+          <span class="int-check">${on?'✓':''}</span>
+          <span class="int-txt"><b>${a[1]}</b><br><span class="muted" style="font-size:12px">${a[2]}</span></span>
+          <span class="int-cnt">${cnt(a[0])}</span></button>`; }).join("")}
+    </div>
+    <p class="muted" style="text-align:center;margin-top:10px">Seçili havuz: <b style="color:var(--text)">${selCount} soru</b></p>
+    <button class="btn-primary" onclick="showIntro()">✅ Kaydet ve Oyuna Dön</button>
+    ${sel.length ? `<button class="btn-pass" style="width:100%;margin-top:10px" onclick="setInterests([]);showInterests()">Tümünü Seç (filtreyi kaldır)</button>` : ""}
+  </div>`;
+}
+
+/* ---- Disiplin Kazan (yakında) ---- */
+function showDiscipline(){
+  setView("disiplin"); updateTopicPanel(null);
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">🧠 Disiplin Kazan</span>
+    <div style="text-align:center;padding:34px 10px">
+      <div style="font-size:56px">🧠</div>
+      <h2 style="margin-top:10px">Yakında</h2>
+      <p class="muted" style="margin-top:8px">Trade disiplinini güçlendirecek alıştırmalar burada olacak.</p>
+    </div>
+    <button class="btn-primary" onclick="showIntro()">← Oyuna Dön</button>
+  </div>`;
+}
+
+/* ---- Giriş / Çıkış ---- */
+function showLogin(from){
+  setView(""); updateTopicPanel(null);
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">🔑 Giriş Yap</span>
+    <h2>E-postanla giriş yap</h2>
+    <p class="muted" style="margin-top:8px">Daha önce kaydolduğun e-postayı yaz — nickname'in ve kasan geri gelir.</p>
+    <input class="name-input" id="loginEmail" type="email" maxlength="80" placeholder="E-posta adresin"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="muted" id="loginMsg" style="margin-top:8px;min-height:18px"></div>
+    <button class="btn-primary" onclick="doLogin()">Giriş Yap 🚀</button>
+    <button class="btn-pass" style="width:100%;margin-top:10px" onclick="showRegister('nav')">Hesabın yok mu? Kaydol</button>
+    <button class="btn-pass" style="width:100%;margin-top:10px" onclick="currentPlayer()?showIntro():showNameScreen()">← Geri</button>
+  </div>`;
+  setTimeout(()=>{ const el=document.getElementById("loginEmail"); if(el) el.focus(); }, 50);
+}
+async function doLogin(){
+  const email = (document.getElementById("loginEmail")||{}).value || "";
+  const msg = document.getElementById("loginMsg");
+  msg.textContent = "⏳ Giriş yapılıyor...";
+  try{
+    const res = await apiCall("login", {email});
+    if(!res.ok){ msg.textContent = "⚠️ " + (res.err||"Giriş başarısız"); return; }
+    const em = email.trim().toLowerCase();
+    store.set("pk_reg", JSON.stringify({email:em, nick:res.nick, token:res.token}));
+    store.set("pk_player", res.nick);
+    const p = getPlayers(); if(!p[res.nick]) p[res.nick] = {bal:res.bal, games:0}; else p[res.nick].bal = res.bal; savePlayers(p);
+    state.balance = res.bal; state.roundStart = res.bal;
+    updateChip(); updateNavAuth(); showIntro();
+  }catch(e){ msg.textContent = "⚠️ Bağlantı hatası — tekrar dene."; }
+}
+function doLogout(){
+  store.set("pk_reg", "");
+  updateNavAuth();
+  currentPlayer() ? showIntro() : showNameScreen();
+}
+
+/* ================= kayıt & küresel sıralama ekranları ================= */
+function showRegister(from){
+  window.__regBack = from || "intro";
+  updateTopicPanel(null);
+  const nickDefault = escapeHtml(currentPlayer()||"");
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">🌍 Küresel Yarışma Kaydı</span>
+    <h2>Nickname'in sıralamada görünsün</h2>
+    <p class="muted" style="margin-top:8px">
+      E-postan yalnızca <b style="color:var(--text)">hesap anahtarıdır</b> — hiçbir yerde gösterilmez, doğrulama maili gelmez.
+      Sıralamada sadece <b style="color:var(--text)">nickname'in</b> görünür. Başka bir cihazda e-postanı yazarsan kasan seninle gelir.
+    </p>
+    <input class="name-input" id="regEmail" type="email" maxlength="80" placeholder="E-posta adresin">
+    <input class="name-input" id="regNick" maxlength="20" placeholder="Nickname (sıralamada görünecek)" value="${nickDefault}">
+    <div class="muted" id="regMsg" style="margin-top:8px; min-height:18px"></div>
+    <button class="btn-primary" style="background:var(--green)" onclick="doRegister()">Kaydol ve Yarışmaya Devam Et 🚀</button>
+    <button class="btn-pass" style="width:100%; margin-top:10px" onclick="window.__regBack==='final'?showFinal():showIntro()">← Şimdilik Geç</button>
+  </div>`;
+}
+async function doRegister(){
+  const email = (document.getElementById("regEmail")||{}).value||"";
+  const nick = (document.getElementById("regNick")||{}).value||"";
+  const msg = document.getElementById("regMsg");
+  msg.textContent = "⏳ Kaydediliyor...";
+  try{
+    const res = await apiCall("register", {email, nick, bal: state.balance});
+    if(!res.ok){ msg.textContent = "⚠️ " + (res.err||"Bir sorun oluştu."); return; }
+    store.set("pk_reg", JSON.stringify({email: email.trim().toLowerCase(), nick: res.nick, token: res.token}));
+    if(res.existing && typeof res.bal === "number"){
+      // hesap taşıma: sunucudaki kasa geçerli
+      state.balance = res.bal;
+      if(currentPlayer()) setPlayerBal(currentPlayer(), res.bal);
+      updateChip();
+    }
+    await syncScore();
+    updateNavAuth();
+    showGlobalBoard(window.__regBack);
+  }catch(e){ msg.textContent = "⚠️ Bağlantı hatası — tekrar dene."; }
+}
+
+async function showGlobalBoard(from){
+  window.__gbBack = from || "intro";
+  setView("sira"); updateTopicPanel(null);
+  screen.innerHTML = `<div class="card fade-in"><span class="tag hot">🌍 Küresel Sıralama</span><h2>Yükleniyor...</h2></div>`;
+  let rows = [];
+  let err = "";
+  try{
+    const res = await apiCall("board");
+    if(res.ok) rows = res.rows||[]; else err = res.err||"hata";
+  }catch(e){ err = "Bağlantı kurulamadı."; }
+  const reg = getReg();
+  const table = rows.length ? rows.map((r,i)=>{
+    const medal = i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1);
+    const me = reg && r.nick===reg.nick;
+    return `<li class="lb-row ${me?'me':''}">
+      <span class="lb-rank">${medal}</span>
+      <span class="lb-name">${escapeHtml(r.nick)}</span>
+      <span class="lb-ret ${r.ret>=0?'pos':'neg'}">${r.ret>=0?"+":""}${r.ret}%</span>
+      <span class="lb-bal">${fmt$(r.bal)} · ${r.perQ===null?"—":(r.perQ>=0?"+":"")+r.perQ+"%/soru"} · ${r.qs} soru</span></li>`;
+  }).join("") : `<p class="muted">${err ? "⚠️ "+err : "Henüz kayıtlı yarışmacı yok — ilk sen ol!"}</p>`;
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">🌍 Küresel Sıralama</span>
+    <span class="tag">${rows.length} yarışmacı</span>
+    <h2>Tüm cihazlardaki kayıtlı yarışmacılar</h2>
+    <p class="muted" style="margin-bottom:10px">Sıralama <b style="color:var(--text)">toplam kazanç %</b>'sine göredir. Yanında: toplam bakiye · <b style="color:var(--text)">soru başına ortalama kazanç</b> · cevaplanan soru sayısı.</p>
+    <ul class="lb-list">${table}</ul>
+    ${reg ? "" : `<button class="btn-primary" style="background:var(--green)" onclick="showRegister(window.__gbBack)">🌍 Sen de Kaydol, Sıralamaya Gir</button>`}
+    <button class="btn-${reg?"primary":"pass"}" style="width:100%; margin-top:10px" onclick="window.__gbBack==='final'?showFinal():showIntro()">← Geri Dön</button>
+  </div>`;
+}
+
+/* ================= oyuncular & sıralama ================= */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function getPlayers(){ try{ return JSON.parse(store.get("pk_players")||"{}"); }catch(e){ return {}; } }
+function savePlayers(p){ store.set("pk_players", JSON.stringify(p)); }
+function currentPlayer(){ return store.get("pk_player") || null; }
+function playerBal(name){ const p = getPlayers(); return (p[name] && typeof p[name].bal === "number") ? p[name].bal : START_BAL; }
+function setPlayerBal(name, bal){ const p = getPlayers(); if(!p[name]) p[name] = {bal:START_BAL, games:0}; p[name].bal = Math.round(bal); savePlayers(p); }
+function addPlayerGame(name){ const p = getPlayers(); if(!p[name]) p[name] = {bal:START_BAL, games:0}; p[name].games = (p[name].games||0)+1; savePlayers(p); }
+
+function leaderboardHTML(){
+  const p = getPlayers();
+  const rows = Object.entries(p)
+    .map(([n,d])=>({n, bal:d.bal, ret:(d.bal/START_BAL-1)*100, games:d.games||0}))
+    .sort((a,b)=>b.ret-a.ret);
+  if(!rows.length) return '<li class="lb-row"><span class="lb-name" style="color:var(--muted);font-weight:400">Henüz oyuncu yok</span></li>';
+  return rows.map((r,i)=>{
+    const medal = i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1);
+    return `<li class="lb-row ${r.n===currentPlayer()?'me':''}">
+      <span class="lb-rank">${medal}</span>
+      <span class="lb-name">${escapeHtml(r.n)}</span>
+      <span class="lb-ret ${r.ret>=0?'pos':'neg'}">${r.ret>=0?"+":""}${r.ret.toFixed(1)}%</span>
+      <span class="lb-bal">${fmt$(r.bal)}</span></li>`;
+  }).join("");
+}
+function updateLeaderboard(){ const el = document.getElementById("lbList"); if(el) el.innerHTML = leaderboardHTML(); }
+
+let round = pickRound();
+let state = { i:0, balance:START_BAL, roundStart:START_BAL, history:[], choice:null, risk:0, vadeMode:"1g", qv:null, sumPct:0 };
+
+/* ================= küresel sıralama (sunucu) ================= */
+function getReg(){ try{ return JSON.parse(store.get("pk_reg")||"null"); }catch(e){ return null; } }
+async function apiCall(op, body){
+  const opts = body ? {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)} : {};
+  const r = await fetch("/.netlify/functions/api?op="+op, opts);
+  return await r.json();
+}
+function getPending(){ try{ return JSON.parse(store.get("pk_pending")||'{"games":0,"qs":0,"sumPct":0}'); }catch(e){ return {games:0,qs:0,sumPct:0}; } }
+function addPending(d){ const p = getPending(); p.games+=d.games; p.qs+=d.qs; p.sumPct+=d.sumPct; store.set("pk_pending", JSON.stringify(p)); }
+function clearPending(){ store.set("pk_pending", JSON.stringify({games:0,qs:0,sumPct:0})); }
+async function syncScore(){
+  const reg = getReg(); if(!reg) return;
+  const pend = getPending();
+  try{
+    const res = await apiCall("score", {email:reg.email, token:reg.token, bal:state.balance, games:pend.games, qs:pend.qs, sumPct:Math.round(pend.sumPct*100)/100});
+    if(res && res.ok) clearPending();
+  }catch(e){}
+}
+
+const fmt$ = v => "$" + Math.round(v).toLocaleString("tr-TR");
+const screen = document.getElementById("screen");
+const chip = document.getElementById("balanceChip");
+
+/* ================= seeded RNG + fiyat yolu ================= */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function path(seed, n, from, to, vol){
+  const rnd = mulberry32(seed), pts = [];
+  let noise = 0;
+  for(let i=0;i<n;i++){
+    const t = i/(n-1);
+    noise += (rnd()-0.5)*vol;
+    noise *= 0.92;
+    const bridge = Math.sin(Math.PI*t);
+    pts.push(from + (to-from)*t + noise*bridge*from/100);
+  }
+  return pts;
+}
+function buildSeries(sc, pctOverride){
+  const pctUse = (typeof pctOverride === "number") ? pctOverride : sc.pct;
+  const seed = 7 + SCENARIOS_ALL.indexOf(sc)*13;
+  const pre = path(seed, 60, sc.from, sc.to, 1.8);
+  const cap = p => Math.max(-60, Math.min(80, p)); // grafikte aşırı hareketi sınırla
+  const gapTo = sc.to * (1 + cap(sc.pct)/100 * 0.6);
+  const end  = sc.to * (1 + cap(pctUse)/100);
+  const post = path(seed+1, 16, gapTo, end, 1.6);
+  return {pre, post};
+}
+function chartSVG(pre, post, revealCount){
+  const all = pre.concat(post);
+  const W=520, H=200, PAD=10;
+  const lo = Math.min(...all)*0.995, hi = Math.max(...all)*1.005;
+  const N = all.length;
+  const x = i => PAD + (W-2*PAD) * i/(N-1);
+  const y = v => H-PAD - (H-2*PAD) * (v-lo)/(hi-lo);
+  const pts = arr => arr.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const prePts = pts(pre);
+  const evX = x(pre.length-1);
+  let postLine = "";
+  if(revealCount > 0){
+    const shown = post.slice(0, revealCount);
+    const startI = pre.length-1;
+    const p = [ `${x(startI).toFixed(1)},${y(pre[pre.length-1]).toFixed(1)}` ]
+      .concat(shown.map((v,j)=>`${x(startI+1+j).toFixed(1)},${y(v).toFixed(1)}`)).join(" ");
+    const up = post[Math.max(0,revealCount-1)] >= pre[pre.length-1];
+    postLine = `<polyline points="${p}" fill="none" stroke="${up?'#3fb950':'#f85149'}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#388bfd" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#388bfd" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${x(0)},${H-PAD} ${prePts} ${x(pre.length-1)},${H-PAD}" fill="url(#g)"/>
+    <polyline points="${prePts}" fill="none" stroke="#388bfd" stroke-width="2.5" stroke-linejoin="round"/>
+    <line x1="${evX}" y1="${PAD}" x2="${evX}" y2="${H-PAD}" stroke="#d29922" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="${Math.min(evX+6, W-70)}" y="${PAD+12}" fill="#d29922" font-size="11" font-weight="700">OLAY ANI</text>
+    ${postLine}
+  </svg>`;
+}
+
+/* ================= yan paneller ================= */
+function verdictOf(h){
+  if(!h) return null;
+  if(h.choice === "pass") return Math.abs(h.pct) < 4 ? "ok" : "mid";
+  return h.pnl > 0 ? "ok" : h.pnl < 0 ? "bad" : "mid";
+}
+function updateSidePanels(){
+  // bakiye
+  const sb = document.getElementById("sideBalance");
+  sb.textContent = fmt$(state.balance);
+  sb.className = "big-balance " + (state.balance > START_BAL ? "up" : state.balance < START_BAL ? "down" : "");
+  const ret = (state.balance/START_BAL - 1) * 100;
+  const cur = currentPlayer();
+  document.getElementById("sideBalanceSub").textContent =
+    `${cur ? "👤 "+cur+" · " : ""}Toplam kâr oranı: ${ret>=0?"+":""}${ret.toFixed(1)}%`;
+  updateLeaderboard();
+  // skor
+  let ok=0, bad=0, mid=0;
+  state.history.forEach(h=>{
+    const v = verdictOf(h);
+    if(v==="ok") ok++; else if(v==="bad") bad++; else mid++;
+  });
+  document.getElementById("scoreOk").textContent = ok;
+  document.getElementById("scoreBad").textContent = bad;
+  document.getElementById("scoreMid").textContent = mid;
+  // soru listesi
+  const ul = document.getElementById("qlist");
+  ul.innerHTML = round.map((sc,idx)=>{
+    const h = state.history[idx];
+    const v = verdictOf(h);
+    const mark = v==="ok" ? "✓" : v==="bad" ? "✗" : v==="mid" ? "–" : (idx===state.i ? "▶" : String(idx+1));
+    const markCls = v==="ok" ? "ok" : v==="bad" ? "bad" : "mid";
+    const pnlTxt = h ? (h.pnl===0 ? "±$0" : (h.pnl>0?"+":"")+fmt$(h.pnl)) : "";
+    const pnlCls = h ? (h.pnl>0?"pos":h.pnl<0?"neg":"") : "";
+    const rowCls = h ? "" : (idx===state.i ? "current" : "pending");
+    return `<li class="${rowCls}"><span class="mark ${markCls}">${mark}</span>
+      <span class="qname">${sc.name}</span><span class="qpnl ${pnlCls}">${pnlTxt}</span></li>`;
+  }).join("");
+}
+function updateTopicPanel(sc){
+  const p = document.getElementById("topicPanel");
+  if(!sc){
+    p.innerHTML = `<h3>📌 Konu Rehberi</h3>
+      <div class="topic-title">Nasıl oynanır?</div>
+      <div class="topic-desc">Her soruda "o an bilinen" bilgiler verilir. LONG / PAS / SHORT seçersin, pozisyon büyüklüğüne karar verirsin. Sonuç, gerçekte yaşananlarla açıklanır.</div>
+      <ul class="topic-points">
+        <li>Soru geldiğinde bu panelde o sorunun KONUSUYLA ilgili rehber bilgiler görünür.</li>
+        <li>Karar vermeden önce buradaki önemli noktalara göz at.</li>
+        <li>Havuzda ${SCENARIOS_ALL.length} senaryo var — her oyunda ${ROUND} yeni soru gelir.</li>
+      </ul>`;
+    return;
+  }
+  const t = window.PK_TOPICS[sc.t] || window.PK_TOPICS.bilanco;
+  p.innerHTML = `<h3>📌 Konu Rehberi</h3>
+    <div class="topic-title">${t.title}</div>
+    <div class="topic-desc">${t.desc}</div>
+    <h3 style="margin-top:12px">⭐ Önemli Noktalar</h3>
+    <ul class="topic-points">${t.points.map(pt=>`<li>${pt}</li>`).join("")}</ul>`;
+}
+
+/* ================= orta ekranlar ================= */
+function updateChip(){
+  chip.textContent = fmt$(state.balance);
+  chip.className = "balance-chip " + (state.balance > START_BAL ? "up" : state.balance < START_BAL ? "down" : "");
+  chip.classList.add("pulse");
+  setTimeout(()=>chip.classList.remove("pulse"), 350);
+}
+function renderProgress(){
+  const p = document.getElementById("progress");
+  p.innerHTML = round.map((_,idx)=>{
+    const h = state.history[idx];
+    let cls = "seg";
+    if(h) cls += h.pnl > 0 ? " done-win" : h.pnl < 0 ? " done-loss" : " done-flat";
+    else if(idx === state.i) cls += " current";
+    return `<div class="${cls}"></div>`;
+  }).join("");
+}
+
+function showNameScreen(){
+  setView(""); updateNavAuth(); updateTopicPanel(null); updateLeaderboard();
+  const players = Object.keys(getPlayers());
+  const chips = players.length
+    ? `<p class="muted" style="margin-top:14px">Veya kayıtlı oyunculardan seç:</p>
+       <div>${players.map(n=>`<button class="player-chipbtn" onclick="startAsPlayer('${escapeHtml(n).replace(/'/g,"\\'")}')">👤 ${escapeHtml(n)} · ${fmt$(playerBal(n))}</button>`).join("")}</div>`
+    : "";
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">Finansal Refleks Oyunu</span>
+    <h1>Adını yaz, kasanı aç 💰</h1>
+    <p class="muted" style="margin-top:8px">
+      Her oyuncunun <b style="color:var(--text)">kalıcı bir kasası</b> vardır: $10.000 ile başlarsın,
+      her oyunda <b style="color:var(--text)">kaldığın paradan devam edersin</b>. Kâr oranına göre
+      soldaki başarı sıralamasına girersin.
+    </p>
+    <input class="name-input" id="playerName" maxlength="20" placeholder="Adını yaz (örn. Yasin)"
+      onkeydown="if(event.key==='Enter')startAsPlayer(document.getElementById('playerName').value)">
+    <button class="btn-primary" onclick="startAsPlayer(document.getElementById('playerName').value)">Kasayı Aç 🚀</button>
+    ${chips}
+  </div>`;
+  setTimeout(()=>{ const el=document.getElementById("playerName"); if(el) el.focus(); }, 50);
+}
+
+function startAsPlayer(name){
+  name = String(name||"").trim().slice(0,20);
+  if(!name){ const el=document.getElementById("playerName"); if(el){ el.placeholder="⚠️ Önce adını yaz!"; el.focus(); } return; }
+  store.set("pk_player", name);
+  const p = getPlayers();
+  if(!p[name]){ p[name] = {bal:START_BAL, games:0}; savePlayers(p); }
+  state.balance = playerBal(name);
+  state.roundStart = state.balance;
+  updateChip(); showIntro();
+}
+
+function switchPlayer(){ store.set("pk_player",""); showNameScreen(); }
+function resetBankroll(){
+  const cur = currentPlayer(); if(!cur) return;
+  setPlayerBal(cur, START_BAL);
+  state.balance = START_BAL; state.roundStart = START_BAL;
+  updateChip(); showIntro();
+}
+
+function showIntro(){
+  setView("oyna"); updateNavAuth();
+  renderProgress(); updateSidePanels(); updateTopicPanel(null);
+  const cur = currentPlayer();
+  const broke = state.balance < 500;
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">👤 ${escapeHtml(cur||"Oyuncu")}</span>
+    <span class="tag">Kasa: ${fmt$(state.balance)}</span>
+    <span class="tag">${SCENARIOS_ALL.length} senaryoluk havuz</span>
+    <h1>Piyasanın en kritik anlarında sen olsan ne yapardın?</h1>
+    <p class="muted" style="margin-top:8px">
+      Gerçek tarihi olaylar: bilançolar, FED kararları, zirve kırılımları, şok haberler,
+      sempati hareketleri, halka arzlar, kripto ve emtia. Her oyunda havuzdan
+      <b style="color:var(--text)">${ROUND} YENİ soru</b> gelir — daha önce çıkanlar tekrar gelmez.
+    </p>
+    <ul class="ctx" style="margin-top:14px">
+      <li>💰 Kasan <b>kalıcıdır</b>: her oyunda kaldığın paradan devam edersin.</li>
+      <li>🟢 LONG (yükselir) · ⚪ PAS (işlem yok) · 🔴 SHORT (düşer) seçersin.</li>
+      <li>⚖️ Pozisyon büyüklüğünü sen belirlersin — risk yönetimi puanın kadar önemli.</li>
+      <li>📚 Oyun sonunda, yanlışlarından çıkarman gereken derslerin özetini görürsün.</li>
+      <li>⏳ Her soruda pozisyonun <b>vadesi</b> (ne kadar tutulacağı) belirtilir.</li>
+    </ul>
+    ${broke ? `<div class="result-banner loss" style="margin-top:12px"><span class="big">💀</span>Kasan tükendi! Yeni bir $10.000 ile başlayabilirsin (sıralamadaki kâr oranın sıfırlanır).</div>
+    <button class="btn-primary" onclick="resetBankroll()">Kasayı Sıfırla ($10.000) 🔄</button>`
+    : `<button class="btn-primary" onclick="showVadeSelect()">Oyuna Başla 🚀</button>`}
+    <button class="btn-pass" style="width:100%; margin-top:10px" onclick="showGlobalBoard('intro')">🌍 Küresel Sıralama${getReg()?" — "+escapeHtml(getReg().nick):""}</button>
+    <button class="btn-pass" style="width:100%; margin-top:10px" onclick="showArchive(false)">📖 Çözülen Sorulara Göz At (${archiveCount()})</button>
+    <button class="btn-pass" style="width:100%; margin-top:10px" onclick="switchPlayer()">👤 Oyuncu Değiştir</button>
+  </div>`;
+}
+
+function showVadeSelect(){
+  updateTopicPanel(null);
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">⏳ Vade Seçimi</span>
+    <h2>Bu oyunda pozisyonlarını ne kadar tutacaksın?</h2>
+    <p class="muted" style="margin-top:8px">
+      Seçtiğin vade <b style="color:var(--text)">tüm oyun</b> için geçerli olur ve her sorunun sonucu
+      <b style="color:var(--text)">o vadenin sonundaki fiyata göre</b> hesaplanır.
+      Kısa vadede olayın ilk tepkisini, uzun vadede olay sonrası büyük resmi oynarsın.
+      🎲 <b style="color:var(--text)">Random</b> seçersen her soru rastgele bir vadeyle gelir.
+    </p>
+    <div class="btn-row" style="flex-wrap:wrap; gap:8px">
+      ${VADES.map(v=>`<button class="btn-risk" style="flex:1 1 30%" onclick="startRound('${v[0]}')">${v[1]}</button>`).join("")}
+      <button class="btn-risk" style="flex:1 1 30%; color:var(--gold); border-color:var(--gold)" onclick="startRound('rnd')">🎲 Random</button>
+    </div>
+  </div>`;
+}
+function startRound(mode){
+  state.vadeMode = mode;
+  state.roundStart = state.balance;
+  showScenario();
+}
+
+function showScenario(){
+  const sc = round[state.i];
+  state.qv = qVadeFor();
+  state.qv.pct = pctAt(sc, state.qv.days);
+  const s = buildSeries(sc, state.qv.pct);
+  renderProgress(); updateSidePanels(); updateTopicPanel(sc);
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">${sc.cat}</span>
+    <span class="tag">Soru ${state.i+1}/${ROUND}</span>
+    <span class="tag" style="color:var(--blue); border-color:var(--blue)">⏳ Vade: ${state.qv.label}</span>
+    <h2>${sc.title}</h2>
+    <div class="datetime">📅 ${sc.date} · Pozisyon <b>${state.qv.label}</b> boyunca tutulacak; sonuç vade sonundaki fiyata göre hesaplanır</div>
+    <div class="chart-wrap">
+      <div class="chart-head"><span class="sym">${sc.name}</span><span class="px">olay öncesi grafik</span></div>
+      ${chartSVG(s.pre, s.post, 0)}
+    </div>
+    <ul class="ctx">${sc.ctx.map(c=>`<li>${c}</li>`).join("")}</ul>
+    ${(window.PK_DETAILS && window.PK_DETAILS[sc.title]) ? `
+    <details class="arc-item" style="margin-top:10px">
+      <summary><span style="font-weight:700">📰 Detaylı Durum</span><span class="arc-info">dönemin ortamı, varlığın konumu, piyasa duyarlılığı</span></summary>
+      <div class="arc-body"><ul class="ctx" style="margin-top:6px">${window.PK_DETAILS[sc.title].map(d=>`<li style="border-left-color:var(--gold)">${d}</li>`).join("")}</ul></div>
+    </details>` : ""}
+    <h2 style="margin-top:16px">❓ Pozisyon alır mısın?</h2>
+    <div class="btn-row">
+      <button class="btn-long" onclick="choose('long')">🟢 LONG<span class="btn-sub">Yükselir</span></button>
+      <button class="btn-pass" onclick="choose('pass')">⚪ PAS<span class="btn-sub">İşlem yok</span></button>
+      <button class="btn-short" onclick="choose('short')">🔴 SHORT<span class="btn-sub">Düşer</span></button>
+    </div>
+  </div>`;
+}
+
+function choose(dir){
+  state.choice = dir;
+  if(dir === "pass"){ state.risk = 0; resolve(); return; }
+  const sc = round[state.i];
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag ${dir==='long'?'':'hot'}" style="color:${dir==='long'?'var(--green-bright)':'var(--red-bright)'}; border-color:currentColor">
+      ${dir==='long'?'🟢 LONG':'🔴 SHORT'} — ${sc.name}
+    </span>
+    <h2 style="margin-top:12px">Bakiyenin yüzde kaçını riske atıyorsun?</h2>
+    <p class="muted">Mevcut bakiye: <b style="color:var(--text)">${fmt$(state.balance)}</b>.
+    Pozisyon ne kadar büyükse kazanç da kayıp da o kadar büyür.</p>
+    <div class="btn-row">
+      <button class="btn-risk" onclick="setRisk(0.10)">%10<span class="btn-sub">Temkinli</span></button>
+      <button class="btn-risk" onclick="setRisk(0.25)">%25<span class="btn-sub">Dengeli</span></button>
+      <button class="btn-risk" onclick="setRisk(0.50)">%50<span class="btn-sub">Agresif</span></button>
+    </div>
+  </div>`;
+}
+function setRisk(r){ state.risk = r; resolve(); }
+
+function resolve(){
+  const sc = round[state.i];
+  const qv = state.qv || {label:vadeOf(sc), days:vadeDays(vadeOf(sc)), pct:sc.pct};
+  const eff = (typeof qv.pct === "number") ? qv.pct : sc.pct;
+  const s = buildSeries(sc, eff);
+  const prevBal = state.balance;
+  const stake = state.balance * state.risk;
+  let pnl = 0;
+  if(state.choice === "long")  pnl =  stake * eff/100;
+  if(state.choice === "short") pnl = -stake * eff/100;
+  state.sumPct += prevBal > 0 ? (pnl/prevBal)*100 : 0; // soru başına getiri takibi
+  state.balance = Math.max(0, state.balance + pnl);
+  state.history.push({choice:state.choice, risk:state.risk, pnl, pct:eff, sc});
+  saveToArchive(sc, state.choice, state.risk, pnl, eff, qv.label);
+  if(currentPlayer()) setPlayerBal(currentPlayer(), state.balance);
+  updateChip(); renderProgress(); updateSidePanels();
+
+  const dirTxt = state.choice==="long" ? "🟢 LONG" : state.choice==="short" ? "🔴 SHORT" : "⚪ PAS";
+  const riskTxt = state.choice==="pass" ? "" : ` · pozisyon: bakiyenin %${Math.round(state.risk*100)}'i (${fmt$(stake)})`;
+  const cls = pnl > 0 ? "win" : pnl < 0 ? "loss" : "flat";
+  const moveTxt = (eff>0?"+":"") + eff + "%";
+  const last = state.i === ROUND-1;
+  const lessonTxt = window.PK_LESSONS[sc.les] || "";
+  const d0 = vadeDays(vadeOf(sc));
+  const vadeNote = (qv.days !== d0)
+    ? `<p class="muted" style="margin:0 0 10px; font-size:12.5px">⏳ Olayın ilk tepkisi (${vadeOf(sc)}): <b style="color:${sc.pct>=0?'var(--green-bright)':'var(--red-bright)'}">${sc.pct>0?"+":""}${sc.pct}%</b>
+       · Senin vaden (${qv.label}) sonunda: <b style="color:${eff>=0?'var(--green-bright)':'var(--red-bright)'}">${moveTxt}</b>
+       <span style="opacity:.7">(uzun vade sonuçları ilk tepki üzerine yaklaşık modellenir)</span></p>`
+    : "";
+
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag">${sc.cat}</span>
+    <span class="tag" style="color:var(--blue); border-color:var(--blue)">⏳ ${qv.label}</span>
+    <h2>Ne oldu?</h2>
+    <div class="chart-wrap">
+      <div class="chart-head"><span class="sym">${sc.name}</span>
+        <span class="px" style="color:${eff>=0?'var(--green-bright)':'var(--red-bright)'};font-weight:700">${moveTxt}</span></div>
+      <div id="revealChart">${chartSVG(s.pre, s.post, 0)}</div>
+    </div>
+    <p class="muted" style="margin:4px 0 6px">${sc.story}</p>
+    ${vadeNote}
+    <div class="result-banner ${cls}">
+      <span class="big">${pnl>0?"+":""}${pnl===0?"±$0":fmt$(pnl)}</span>
+      Kararın: ${dirTxt}${riskTxt}
+    </div>
+    <div class="lesson">📚 <b>Ders:</b> ${lessonTxt}</div>
+    <button class="btn-primary" onclick="${last ? "showFinal()" : "nextScenario()"}">
+      ${last ? "Sonuçları ve Ders Özetini Gör 🏁" : "Sıradaki Soru →"}</button>
+  </div>`;
+
+  let count = 0;
+  const iv = setInterval(()=>{
+    count++;
+    const el = document.getElementById("revealChart");
+    if(!el){ clearInterval(iv); return; }
+    el.innerHTML = chartSVG(s.pre, s.post, count);
+    if(count >= s.post.length) clearInterval(iv);
+  }, 90);
+}
+
+function nextScenario(){ state.i++; showScenario(); }
+
+function showFinal(){
+  const bal = state.balance;
+  const start = state.roundStart || START_BAL;
+  const roundRet = (bal/start - 1) * 100;
+  const totalRet = (bal/START_BAL - 1) * 100;
+  let ok=0, bad=0, mid=0;
+  state.history.forEach(h=>{ const v=verdictOf(h); if(v==="ok")ok++; else if(v==="bad")bad++; else mid++; });
+
+  if(!state.finalized){
+    state.finalized = true;
+    if(currentPlayer()) addPlayerGame(currentPlayer());
+    addPending({games:1, qs:state.history.length, sumPct:state.sumPct});
+    syncScore(); // kayıtlıysa skoru küresel sıralamaya işle
+  }
+
+  let emoji, title, note;
+  if(roundRet >= 40){ emoji="🐺"; title="Piyasa Kurdu"; note="Hem yönü hem risk yönetimini ustaca kullandın."; }
+  else if(roundRet >= 15){ emoji="📈"; title="Usta Trader"; note="Ciddi bir getiri. Fırsatları okuyorsun — tutarlılığı koru."; }
+  else if(roundRet >= 0){ emoji="🙂"; title="Kârda Kapattın"; note="Piyasadan sağ çıkmak bile başarıdır."; }
+  else if(roundRet >= -40){ emoji="😬"; title="Ders Aldın"; note="Kayıplar en iyi öğretmendir — aşağıdaki özeti oku."; }
+  else { emoji="💀"; title="Margin Call"; note="Kasa eridi. Muhtemelen yanlış yönde çok büyük pozisyon aldın."; }
+
+  const best = Math.max(bal, Number(store.get("pk_best")||0));
+  store.set("pk_best", best);
+
+  // yanlışlardan ders özeti (tekrarları birleştir)
+  const wrongs = state.history.filter(h=>verdictOf(h)==="bad");
+  const seen = new Set();
+  let lessonsHtml = "";
+  wrongs.forEach(h=>{
+    if(seen.has(h.sc.les)) return;
+    seen.add(h.sc.les);
+    const others = wrongs.filter(w=>w.sc.les===h.sc.les).map(w=>w.sc.name).join(", ");
+    lessonsHtml += `<div class="lesson-item"><span class="src">❌ ${others} sorusunda kaybettin</span>${window.PK_LESSONS[h.sc.les]||""}</div>`;
+  });
+  const summaryBlock = wrongs.length
+    ? `<div class="lesson-summary"><h3>📚 Bu Oyundan Çıkarman Gereken Dersler</h3>${lessonsHtml}</div>`
+    : `<div class="lesson-summary"><h3>📚 Ders Özeti</h3><div class="lesson-item">Hiç yanlışın yok — bu turda not edilecek ders bırakmadın. 👏 Yeni sorularla kendini tekrar test et.</div></div>`;
+
+  renderProgress(); updateSidePanels(); updateTopicPanel(null);
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <div class="final-emoji">${emoji}</div>
+    <div class="final-title">${escapeHtml(currentPlayer()||"")} — ${title}</div>
+    <div class="final-balance" style="color:${roundRet>=0?'var(--green-bright)':'var(--red-bright)'}">${fmt$(bal)}</div>
+    <p class="muted" style="text-align:center">Bu oyun: ${fmt$(start)} → ${fmt$(bal)} (${roundRet>=0?"+":""}${roundRet.toFixed(1)}%)<br>
+    Toplam kâr oranın: <b style="color:${totalRet>=0?'var(--green-bright)':'var(--red-bright)'}">${totalRet>=0?"+":""}${totalRet.toFixed(1)}%</b> — sıralamadaki yerini bu belirler</p>
+    <div class="stats-grid">
+      <div class="stat"><div class="v" style="color:var(--green-bright)">${ok}</div><div class="l">Doğru</div></div>
+      <div class="stat"><div class="v" style="color:var(--red-bright)">${bad}</div><div class="l">Yanlış</div></div>
+      <div class="stat"><div class="v">${mid}</div><div class="l">Pas/Nötr</div></div>
+    </div>
+    <p class="muted" style="text-align:center; margin:6px 0 2px">${note}</p>
+    <p class="muted" style="text-align:center">🏆 Rekorun: <b style="color:var(--gold)">${fmt$(best)}</b></p>
+    ${summaryBlock}
+    ${getReg()
+      ? `<div class="lesson-item" style="border-color:var(--green); background:rgba(46,164,79,.08)">🌍 Skorun küresel sıralamaya işlendi — <b>${escapeHtml(getReg().nick)}</b> olarak yarışıyorsun.</div>`
+      : `<div class="result-banner win" style="margin-top:14px"><span class="big">🌍</span>
+          ${roundRet>=0 ? `<b>${roundRet>=0?"+":""}${roundRet.toFixed(1)}% yaptın!</b> Başarını herkese göster —` : `Yarışma asıl şimdi başlıyor —`}
+          hemen kaydol, <b>küresel sıralamaya</b> gir! Kaydolanlar kalıcı olarak sıralamada yarışır.</div>
+        <button class="btn-primary" style="background:var(--green)" onclick="showRegister('final')">🌍 Kaydol ve Sıralamaya Gir</button>`}
+    <div class="lesson-summary"><h3 style="color:var(--text)">🏆 Bu Cihazdaki Sıralama</h3><ul class="lb-list">${leaderboardHTML()}</ul></div>
+    <button class="btn-primary" onclick="restart()">Aynı Kasayla Devam Et 🔄</button>
+    <button class="btn-pass" style="width:100%; margin-top:10px" onclick="showGlobalBoard('final')">🌍 Küresel Sıralamayı Gör</button>
+    <button class="btn-pass" style="width:100%; margin-top:10px" onclick="showArchive(true)">📖 Çözülen Sorulara Göz At (${archiveCount()})</button>
+    <button class="btn-pass" style="width:100%; margin-top:10px" onclick="switchPlayer()">👤 Oyuncu Değiştir</button>
+  </div>`;
+}
+
+function restart(){
+  round = pickRound();
+  const bal = currentPlayer() ? playerBal(currentPlayer()) : START_BAL;
+  state = { i:0, balance:bal, roundStart:bal, history:[], choice:null, risk:0, vadeMode:state.vadeMode||"1g", qv:null, sumPct:0 };
+  updateChip(); showIntro();
+}
+
+/* ================= başlangıç ================= */
+(function boot(){
+  updateNavAuth();
+  const cur = currentPlayer();
+  if(cur){
+    state.balance = playerBal(cur);
+    state.roundStart = state.balance;
+    updateChip(); showIntro();
+  } else {
+    showNameScreen();
+  }
+})();
+</script>
+</body>
+</html>
