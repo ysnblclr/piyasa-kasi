@@ -310,7 +310,7 @@
 </div>
 
 <script src="vendor-lightweight-charts.js"></script>
-<script src="realdata.js?v=12"></script>
+<script src="realdata.js?v=13"></script>
 <script src="data1.js?v=12"></script>
 <script src="data2.js?v=12"></script>
 <script src="data3.js?v=12"></script>
@@ -993,22 +993,14 @@ function effVade(r, chosenKey){
   for(let i=ci+1;i<VADE_ORDER.length;i++){ if(r.ret[VADE_ORDER[i]]!=null) return {key:VADE_ORDER[i], pct:r.ret[VADE_ORDER[i]], fallback:true}; }
   return {key:chosenKey, pct:0, fallback:false, none:true};
 }
-function realInfoBullets(sc, r){ // olay-öncesi gerçek istatistikler (sonucu ele vermez)
-  const pre = r.pre, n = pre.length, last = pre[n-1].close, b = [];
-  b.push(`🏷️ ${sc.name} — ${r.baseDate} kapanış: <b>${fmtPrice(r.base)}</b> <span style="opacity:.7">(kaynak: ${r.src==='b'?'Binance':'Yahoo Finance'})</span>`);
-  if(n>=22){ const m=(last-pre[n-22].close)/pre[n-22].close*100; b.push(`📊 Son 1 ayda (olay öncesi): <b>${m>=0?'+':''}${m.toFixed(1)}%</b>`); }
-  if(n>=6){ const w=(last-pre[n-6].close)/pre[n-6].close*100; b.push(`📈 Son 1 haftada: <b>${w>=0?'+':''}${w.toFixed(1)}%</b>`); }
-  const hi=Math.max(...pre.map(p=>p.high)), lo=Math.min(...pre.map(p=>p.low));
-  b.push(`⛰️ Son ${n} günün aralığı: dip <b>${fmtPrice(lo)}</b> — zirve <b>${fmtPrice(hi)}</b>; şu an zirveye <b>%${((hi-last)/hi*100).toFixed(1)}</b> mesafede`);
-  const av = VADE_ORDER.filter(k=>r.ret[k]!=null).map(k=>VADE_LBL[k]).join(", ");
-  b.push(`⏳ Bu soruda gerçek verisi olan vadeler: <b>${av||"—"}</b>`);
-  return b;
-}
-function ensure5(list, sc){
-  const out = list.slice();
-  const extras = [`🗂️ Kategori: <b>${sc.cat}</b>`, `📅 Tarih: <b>${sc.date}</b>`, `📌 Varlık: <b>${sc.name}</b>`];
-  let i=0; while(out.length<5 && i<extras.length){ out.push(extras[i++]); }
-  return out;
+function make5(sc){
+  const ctx = (sc.ctx||[]).slice(0,3);
+  const det = (window.PK_DETAILS && window.PK_DETAILS[sc.title]) || [];
+  const extra = det.slice(0,2);
+  const out = ctx.concat(extra);
+  const fill = [`🌍 Ortam: <b>${sc.cat}</b> — ${sc.date}`,`📌 Varlık: <b>${sc.name}</b>`];
+  let i=0; while(out.length<5 && i<fill.length){ out.push(fill[i++]); }
+  return out.slice(0,5);
 }
 function buildPostLine(r, effKey){
   const pts = [{time:r.baseDate, value:r.base}];
@@ -1056,13 +1048,13 @@ function showScenario(){
     effLabel = VADE_LBL[ev.key] + (state.vadeMode==="rnd" ? " 🎲" : "");
     if(ev.fallback) note = ` <span style="color:var(--gold)">(bu soruda ${VADE_LBL[state.qv.key]||state.qv.label} verisi yok → ${VADE_LBL[ev.key]} kullanıldı)</span>`;
     chartHtml = `<div class="chart-head"><span class="sym">${sc.name}</span><span class="px">gerçek veri · olay tarihinde kesik 🕯️</span></div><div id="liveChart" style="height:230px"></div>`;
-    bullets = ensure5(sc.ctx.concat(realInfoBullets(sc, r)), sc);
+    bullets = make5(sc);
   } else {
     state.qv.pct = pctAt(sc, state.qv.days); state.qv.real = false;
     effLabel = state.qv.label;
     const s = buildSeries(sc, state.qv.pct);
     chartHtml = `<div class="chart-head"><span class="sym">${sc.name}</span><span class="px">temsili grafik</span></div>${chartSVG(s.pre, s.post, 0)}`;
-    bullets = ensure5(sc.ctx.concat(window.PK_DETAILS && window.PK_DETAILS[sc.title] ? window.PK_DETAILS[sc.title] : []), sc);
+    bullets = make5(sc);
   }
   renderProgress(); updateSidePanels(); updateTopicPanel(sc);
   screen.innerHTML = `
