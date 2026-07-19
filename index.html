@@ -310,7 +310,7 @@
 </div>
 
 <script src="vendor-lightweight-charts.js"></script>
-<script src="realdata.js?v=13"></script>
+<script src="realdata.js?v=14"></script>
 <script src="data1.js?v=12"></script>
 <script src="data2.js?v=12"></script>
 <script src="data3.js?v=12"></script>
@@ -986,12 +986,23 @@ const VADE_ORDER = ["1g","1h","1a","3a","6a","1y"];
 const VADE_LBL = {"1g":"1 Gün","1h":"1 Hafta","1a":"1 Ay","3a":"3 Ay","6a":"6 Ay","1y":"1 Yıl"};
 function realOf(sc){ const r = window.PK_REAL && window.PK_REAL[sc.title]; return (r && r.pre && r.pre.length) ? r : null; }
 function fmtPrice(v){ return v>=1000 ? Math.round(v).toLocaleString("tr-TR") : v>=1 ? v.toFixed(2) : v.toFixed(4); }
+const VOL_FLOOR = 3; // en az bu kadar (%) hareket = "fırsat"; altındaysa vade ileri kayar
 function effVade(r, chosenKey){
-  if(r.ret[chosenKey]!=null) return {key:chosenKey, pct:r.ret[chosenKey], fallback:false};
+  const has = k => r.ret[k]!=null;
   const ci = VADE_ORDER.indexOf(chosenKey);
-  for(let i=ci-1;i>=0;i--){ if(r.ret[VADE_ORDER[i]]!=null) return {key:VADE_ORDER[i], pct:r.ret[VADE_ORDER[i]], fallback:true}; }
-  for(let i=ci+1;i<VADE_ORDER.length;i++){ if(r.ret[VADE_ORDER[i]]!=null) return {key:VADE_ORDER[i], pct:r.ret[VADE_ORDER[i]], fallback:true}; }
-  return {key:chosenKey, pct:0, fallback:false, none:true};
+  // 1) Seçilen vadede veri yok → en yakın mevcut vadeye düş
+  if(!has(chosenKey)){
+    for(let i=ci-1;i>=0;i--){ if(has(VADE_ORDER[i])) return {key:VADE_ORDER[i], pct:r.ret[VADE_ORDER[i]], fallback:true, reason:"nodata"}; }
+    for(let i=ci+1;i<VADE_ORDER.length;i++){ if(has(VADE_ORDER[i])) return {key:VADE_ORDER[i], pct:r.ret[VADE_ORDER[i]], fallback:true, reason:"nodata"}; }
+    return {key:chosenKey, pct:0, fallback:false, none:true};
+  }
+  // 2) Veri var ama hareket zayıf (<%3) → ≥%3 fırsatın olduğu en yakın vadeye kay (önce ileri: fırsat sonraki günlerde gelişir)
+  if(Math.abs(r.ret[chosenKey]) < VOL_FLOOR){
+    for(let i=ci+1;i<VADE_ORDER.length;i++){ if(has(VADE_ORDER[i]) && Math.abs(r.ret[VADE_ORDER[i]])>=VOL_FLOOR) return {key:VADE_ORDER[i], pct:r.ret[VADE_ORDER[i]], fallback:true, reason:"vol"}; }
+    for(let i=ci-1;i>=0;i--){ if(has(VADE_ORDER[i]) && Math.abs(r.ret[VADE_ORDER[i]])>=VOL_FLOOR) return {key:VADE_ORDER[i], pct:r.ret[VADE_ORDER[i]], fallback:true, reason:"vol"}; }
+    // hiçbir vadede ≥%3 yoksa gerçekten sakin (nadir PAS dersi) → seçileni kullan
+  }
+  return {key:chosenKey, pct:r.ret[chosenKey], fallback:false};
 }
 function make5(sc){
   const ctx = (sc.ctx||[]).slice(0,3);
@@ -1046,7 +1057,9 @@ function showScenario(){
     const ev = effVade(r, state.qv.key);
     state.qv.pct = ev.pct; state.qv.effKey = ev.key; state.qv.real = true;
     effLabel = VADE_LBL[ev.key] + (state.vadeMode==="rnd" ? " 🎲" : "");
-    if(ev.fallback) note = ` <span style="color:var(--gold)">(bu soruda ${VADE_LBL[state.qv.key]||state.qv.label} verisi yok → ${VADE_LBL[ev.key]} kullanıldı)</span>`;
+    if(ev.fallback) note = ev.reason==="vol"
+      ? ` <span style="color:var(--gold)">(${VADE_LBL[state.qv.key]||state.qv.label} hareketi zayıf → fırsat vadesi ${VADE_LBL[ev.key]} kullanıldı)</span>`
+      : ` <span style="color:var(--gold)">(bu soruda ${VADE_LBL[state.qv.key]||state.qv.label} verisi yok → ${VADE_LBL[ev.key]} kullanıldı)</span>`;
     chartHtml = `<div class="chart-head"><span class="sym">${sc.name}</span><span class="px">gerçek veri · olay tarihinde kesik 🕯️</span></div><div id="liveChart" style="height:230px"></div>`;
     bullets = make5(sc);
   } else {

@@ -292,10 +292,25 @@ async function fetchBinance(sym, startMs, endMs){
   }
   return out;
 }
-function baseIdx(series, eventTs){
-  let idx = -1;
-  for(let i=0;i<series.length;i++){ if(series[i].t <= eventTs + DAY*0.6) idx = i; else break; }
-  return idx;
+// Baz'ı, sonucu HİKÂYENİN NİYETİYLE (storedPct'in yönü/büyüklüğü) eşleşecek şekilde
+// hizalar. Aday bazlar: olay-günü-1 (karar olaydan önce, örn. DeepSeek hafta sonu haberi)
+// ve olay-günü (karar olayda/sonra, örn. AMC zirvesi, kapanış-sonrası bilanço tepkisi).
+// 1g'si storedPct ile aynı işaretli ve en büyük olan baz seçilir → gerçek hareketi
+// yüzeye çıkarır ama hikâyeyi ters çevirmez. PAS senaryolarında (storedPct≈0) sakin kalır.
+function anchorIdx(series, eventDateISO, storedPct){
+  let e = -1;
+  for(let i=0;i<series.length;i++){ if(iso(series[i].t) >= eventDateISO){ e = i; break; } }
+  if(e < 1) return {base:-1};
+  const sgn = storedPct>0 ? 1 : storedPct<0 ? -1 : 0;
+  let best = null;
+  for(const b of [e-1, e]){
+    if(b>=0 && b+1<series.length){
+      const g = (series[b+1].c - series[b].c) / series[b].c * 100;
+      const score = sgn===0 ? -Math.abs(g) : g*sgn; // niyetle hizalı & volatil = yüksek
+      if(!best || score > best.score) best = {base:b, score};
+    }
+  }
+  return best || {base:-1};
 }
 const rp = (v,d=2) => +v.toFixed(v>=1000?1:v>=10?2:4);
 
@@ -312,19 +327,19 @@ async function run(){
       else series = await fetchYahoo(ticker, startTs, endTs);
       await sleep(280);
       if(series.length < 3) throw new Error("az-veri");
-      const bi = baseIdx(series, eventTs);
+      const a = anchorIdx(series, dateISO, storedPct);
+      const bi = a.base;
       if(bi < 0) throw new Error("baz-yok");
       const base = series[bi].c, baseDate = iso(series[bi].t);
       const toBar = p => ({ time:iso(p.t), open:rp(p.o), high:rp(p.h), low:rp(p.l), close:rp(p.c) });
       const pre = series.slice(Math.max(0, bi-59), bi+1).map(toBar);
       const HOR = src==="b" ? HOR_B : HOR_Y;
       const ret = {}, days = {};
-      const todayTs = now;
+      // series yalnızca bugüne kadar veri içerir → ti<length, gelecekteki (henüz
+      // oluşmamış) vadeleri otomatik olarak null bırakır. 2026 olaylarında 1y yoktur.
       for(const [k,off] of Object.entries(HOR)){
         const ti=bi+off;
-        const vadeEndTs = eventTs + off * DAY * (src==="b" ? 1 : 1.45);
-        if(vadeEndTs > todayTs){ ret[k] = null; days[k] = null; continue; }
-        if(ti<series.length){ ret[k] = +(((series[ti].c-base)/base)*100).toFixed(2); days[k] = iso(series[ti].t); }
+        if(ti<series.length && iso(series[ti].t) <= iso(now)){ ret[k] = +(((series[ti].c-base)/base)*100).toFixed(2); days[k] = iso(series[ti].t); }
         else { ret[k] = null; days[k] = null; }
       }
       out[title] = { ticker, src, baseDate, base:rp(base), pre, ret, days };
