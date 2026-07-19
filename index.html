@@ -555,20 +555,28 @@ function showInterests(){
   </div>`;
 }
 
-/* ---- Disiplin Kazan (yakında) ---- */
-function showDiscipline(){
+/* ---- Disiplin Kazan (entegre panel) ---- */
+function showDiscipline(view){
   setView("disiplin"); updateTopicPanel(null);
+  const hash = view ? ("#view=" + view) : "";
   screen.innerHTML = `
-  <div class="card fade-in">
-    <span class="tag hot">🧠 Disiplin Kazan</span>
-    <div style="text-align:center;padding:34px 10px">
-      <div style="font-size:56px">🧠</div>
-      <h2 style="margin-top:10px">Yakında</h2>
-      <p class="muted" style="margin-top:8px">Trade disiplinini güçlendirecek alıştırmalar burada olacak.</p>
+  <div class="card fade-in" style="padding:0; overflow:hidden">
+    <div style="padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap">
+      <div>
+        <span class="tag hot">🧠 Disiplin Kazan</span>
+        <span class="muted" style="font-size:12px">Trade psikolojisi araçların — oyunla aynı yerde.</span>
+      </div>
+      <a class="btn-pass" href="disiplin-paneli.html?v=1${hash}" target="_blank" rel="noopener" style="text-decoration:none; padding:8px 14px; width:auto">⛶ Tam ekran aç</a>
     </div>
-    <button class="btn-primary" onclick="showIntro()">← Oyuna Dön</button>
-  </div>`;
+    <iframe id="discFrame" src="disiplin-paneli.html?v=1${hash}" title="Disiplin Paneli" loading="lazy"
+      style="width:100%; height:calc(100vh - 200px); min-height:560px; border:0; border-top:1px solid var(--line,#222); background:#080A10; display:block"></iframe>
+  </div>
+  <button class="btn-primary" style="margin-top:12px" onclick="showIntro()">← Oyuna Dön</button>`;
+  // Tek-sütun (dar) modda içerik kenar çubuğunun altına düşer → panele kaydır
+  setTimeout(function(){ var c=document.querySelector(".order-center")||screen; if(c) c.scrollIntoView({behavior:"smooth", block:"start"}); }, 60);
 }
+/* oyun içi bir olaydan belirli bir disiplin aracını açar */
+function openDiscipline(view){ showDiscipline(view); }
 
 /* ---- Giriş / Çıkış ---- */
 function showLogin(from){
@@ -1230,6 +1238,22 @@ function showFinal(){
     ? `<div class="lesson-summary"><h3>📚 Bu Oyundan Çıkarman Gereken Dersler</h3>${lessonsHtml}</div>`
     : `<div class="lesson-summary"><h3>📚 Ders Özeti</h3><div class="lesson-item">Hiç yanlışın yok — bu turda not edilecek ders bırakmadın. 👏 Yeni sorularla kendini tekrar test et.</div></div>`;
 
+  // Akıllı disiplin tetikleyicisi: oyuncunun risk davranışına göre ilgili aracı öner
+  const aggroLoss = state.history.filter(h=>h.risk>=0.5 && h.pnl<0).length;
+  const trades = state.history.filter(h=>h.choice!=="pass").length;
+  const passes = state.history.filter(h=>h.choice==="pass").length;
+  let disc;
+  if(roundRet <= -25 || aggroLoss >= 2)
+    disc = {view:"em-red-view", icon:"🚨", t:"Büyük kayıp — Zarar Protokolü", d:"Agresif pozisyonlar seni yaktı. Gerçek piyasada böyle anlarda ne yapılır, öğren."};
+  else if(trades >= 9 && passes === 0)
+    disc = {view:"checklist-view", icon:"✅", t:"Her soruda işlem açtın", d:"Hiç PAS demedin — aşırı işlem hata ve komisyon riskidir. İşlem Öncesi Kontrol Listesi'ni dene."};
+  else if(roundRet >= 15)
+    disc = {view:"em-yellow-view", icon:"⚠️", t:"Kârdasın — Özgüven Freni", d:"Kazanç serisi en tehlikeli andır. Lot artırma dürtünü frenlemeyi öğren."};
+  else
+    disc = {view:"simulation-view", icon:"🎯", t:"Reflekslerini test et", d:"Baskı altında rasyonel karar pratiği yap — Deneme Simülasyonu."};
+  const discCard = `<div class="lesson-item" style="border-color:var(--blue); background:rgba(56,139,253,.08); cursor:pointer" onclick="openDiscipline('${disc.view}')">
+    <span class="src">${disc.icon} Disiplin Kazan — ${disc.t}</span>${disc.d} <b style="color:var(--blue)">Aç →</b></div>`;
+
   renderProgress(); updateSidePanels(); updateTopicPanel(null);
   screen.innerHTML = `
   <div class="card fade-in">
@@ -1246,6 +1270,7 @@ function showFinal(){
     <p class="muted" style="text-align:center; margin:6px 0 2px">${note}</p>
     <p class="muted" style="text-align:center">🏆 Rekorun: <b style="color:var(--gold)">${fmt$(best)}</b></p>
     ${summaryBlock}
+    ${discCard}
     ${getReg()
       ? `<div class="lesson-item" style="border-color:var(--green); background:rgba(46,164,79,.08)">🌍 Skorun küresel sıralamaya işlendi — <b>${escapeHtml(getReg().nick)}</b> olarak yarışıyorsun.</div>`
       : `<div class="result-banner win" style="margin-top:14px"><span class="big">🌍</span>
