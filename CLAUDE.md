@@ -15,6 +15,9 @@ anlarıyla (bilançolar, FED kararları, zirve kırılımları, şok haberler, j
 ve **LONG / PAS / SHORT** + pozisyon büyüklüğü (%10/%25/%50) seçer. Sonuç, o olayın
 **gerçek geçmiş fiyat hareketine** göre hesaplanır. Kasa kalıcıdır; küresel sıralama vardır.
 
+**Havuz:** toplam **249 senaryo** (PK_A 91 + PK_B 109 + PK_C 39 + PK_D 10); bunların
+**225'i gerçek OHLC verisiyle** eşleşir (kalanı otomatik SVG fallback moduna düşer).
+
 - **Framework yok. Build adımı yok.** Saf vanilla JS + tek HTML. Tarayıcıda direkt çalışır.
 - Dil: **Türkçe** (arayüz ve içerik). Kod yorumları da Türkçe.
 - Canlı: https://piyasa-kasi.vercel.app · Repo: https://github.com/ysnblclr/piyasa-kasi (public)
@@ -26,12 +29,14 @@ ve **LONG / PAS / SHORT** + pozisyon büyüklüğü (%10/%25/%50) seçer. Sonuç
 | Dosya | İçerik |
 |---|---|
 | `index.html` | **Ana oyun.** Tüm UI + oyun mantığı + CSS burada (~1300 satır). |
-| `realdata.js` | `window.PK_REAL` — gerçek OHLC verisi. **Otomatik üretilir**, elle düzenleme. ~1.1MB, 239 anahtar / 225 gerçek veri. |
-| `data1.js` | `S()` factory, `PK_TOPICS`, `PK_LESSONS`, `PK_A` (bilanço + FED/makro + Türkiye senaryoları) |
-| `data2.js` | `PK_B` (zirve kırılımı, sempati, şok, halka arz, kripto, emtia, meme) |
-| `data3.js` | `PK_C` (2025 senaryoları) |
-| `data4.js` | `PK_D` (2026 senaryoları) |
-| `data5.js` | `PK_DETAILS` — her senaryo için 3 nitel bilgi maddesi (Ortam/Varlık/Duyarlılık) |
+| `realdata.js` | `window.PK_REAL` — gerçek OHLC verisi. **Otomatik üretilir**, elle düzenleme. ~1.1MB, 239 anahtar / 225 gerçek veri (13 `{error}`, 1 `{hidden}`). |
+| `data1.js` | `S()` factory (satır 185), `PK_TOPICS` (12), `PK_LESSONS` (44), `PK_A` (**91** senaryo: bilanço + FED/makro + Türkiye) |
+| `data2.js` | `PK_B` (**109** senaryo: zirve kırılımı, sempati, şok, halka arz, kripto, emtia, meme) |
+| `data3.js` | `PK_C` (**39** senaryo: 2025) |
+| `data4.js` | `PK_D` (**10** senaryo: 2026) |
+| `data5.js` | `PK_DETAILS` — nitel bağlam; **249 senaryonun yalnız 49'unda var**, her biri 3 madde (Ortam/Varlık/Duyarlılık). `make5` ilk 2'sini kullanır. |
+| `AGENTS.md` | Sadece işaretçi — tüm içerik burada (`CLAUDE.md`). Çoğaltma. |
+| `README.md` | Kullanıcıya dönük tanıtım (TR). |
 | `vendor-lightweight-charts.js` | TradingView lightweight-charts v4.2.1, gömülü (CDN yok). |
 | `disiplin-paneli.html` | Bağımsız "Disiplin Kazan" psikoloji paneli. Oyuna **iframe** ile gömülü. |
 | `tools/fetch-data.mjs` | **Offline veri çekme hattı.** realdata.js'i üretir. Node 24+. |
@@ -79,7 +84,9 @@ S(name, cat, t, date, title, ctx, from, to, pct, story, les, vade)
 2. **Vade tarih doğrulaması:** Bir vade yalnızca `(olay tarihi + vade süresi) ≤ bugün` ise
    gösterilir. `fetch-data.mjs` bunu otomatik sağlar (series sadece bugüne kadar veri içerir →
    `ti < series.length` gelecekteki vadeyi `null` bırakır). **2026 olaylarının 1 yıllık vadesi YOKTUR.**
-3. **Soru başına TAM 5 bilgi maddesi:** `make5(sc)` = `sc.ctx` (3) + `PK_DETAILS` (2). Eski
+3. **Soru başına TAM 5 bilgi maddesi:** `make5(sc)` = `sc.ctx` (3) + `PK_DETAILS[title]` (ilk 2).
+   PK_DETAILS **sadece 49 senaryoda** var; eksikse `make5` genel `🌍 Ortam`/`📌 Varlık`
+   satırlarıyla 5'e tamamlar — yani sonuç **her zaman tam 5 madde**. Eski
    `realInfoBullets`/`ensure5` (grafik istatistikleri) kaldırıldı — geri ekleme.
 4. **Skorlama gerçek `ret[vade]` üzerinden** yapılır (realdata.js). Temsili `pct` sadece gerçek
    veri yoksa (SVG fallback) kullanılır.
@@ -118,7 +125,7 @@ konsolda yazım/doğrulama tablosu. İnternet gerekir (Yahoo + Binance).
 - `realOf(sc)` → senaryonun gerçek verisi (varsa) veya null.
 - `effVade(r, chosenKey)` → efektif vade + pct. Sıra: (1) veri yoksa en yakın mevcut vade
   (`reason:"nodata"`), (2) |ret|<%3 ise ≥%3 fırsata ileri kay (`reason:"vol"`), (3) yeterliyse seçileni ver.
-- `make5(sc)` → tam 5 nitel madde (ctx 3 + PK_DETAILS 2).
+- `make5(sc)` → tam 5 nitel madde (ctx 3 + PK_DETAILS ilk 2; PK_DETAILS yoksa genel satırlarla 5'e tamamlar). Tanım: index.html satır ~1015.
 - `showScenario()` → soru ekranı. `realOf` varsa TradingView mum grafiği + gerçek vade; yoksa SVG fallback.
   `effVade` fallback yaptıysa görünür not gösterir ("… hareketi zayıf → fırsat vadesi X").
 - `resolve()` → cevap sonucu; gerçek `ret[vade]` ile skorlar; tüm vade getirilerini listeler; grafiğe olay-sonrası çizgi çizer.
@@ -196,6 +203,10 @@ konsolda yazım/doğrulama tablosu. İnternet gerekir (Yahoo + Binance).
 
 > **Buraya her ajan kendi değişikliğini bir satırla ekler (en yeni üstte).**
 
+- 2026-07-28 — CLAUDE.md güncel duruma çekildi: senaryo sayıları düzeltildi (toplam **249**;
+  PK_A 91 / PK_B 109 / PK_C 39 / PK_D 10), PK_DETAILS kapsamı netleştirildi (**49/249**,
+  `make5` genel satırlarla 5'e tamamlıyor), realdata 239 anahtar / 225 gerçek (13 error, 1 hidden),
+  dosya tablosuna AGENTS.md + README.md eklendi. Kod değişmedi, yalnız dokümantasyon.
 - 2026-07-19 — CLAUDE.md oluşturuldu (bu dosya): tam mimari + kalıcı kurallar + hattı belgelendi.
 - 2026-07-19 — Disiplin paneli oyuna entegre edildi: `showDiscipline` iframe gömme + `openDiscipline`
   derin bağlantı + `showFinal`'de risk-davranışına göre akıllı disiplin kartı; panele `#view=` hash okuyucusu.
