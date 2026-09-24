@@ -4,6 +4,8 @@
           + konsol doğrulama/yazım tablosu
    Node 24+ (global fetch). Kullanım: node tools/fetch-data.mjs            */
 
+import fs from "node:fs";
+
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36";
 const DAY = 86400;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -230,7 +232,7 @@ const SCEN = [
   // === PK_B: Halka Arz & Özel ===
   ["Tarihin en çok konuşulan halka arzı: Facebook","META","y","2012-05-18",-20],
   ["ARM halka arzı ilk gün +%25: şimdi mi binmeli?","ARM","y","2023-09-14",-15],
-  ["Rivian 150 milyar dolar: Ford'dan değerli EV girişimi","RIVN","y","2021-11-10",-50],
+  ["Rivian 150 milyar dolar: Ford'dan değerli EV girişimi","RIVN","y","2021-11-16",-50],
   ["Snapchat halka arzı uçtu: partiye katılmalı mı?","SNAP","y","2017-03-02",-25],
   ["Uber: on yılın en ünlü halka arzı","UBER","y","2019-05-10",-8],
   ["Coinbase listeleniyor: kripto'nun 'meşruiyet günü'","COIN","y","2021-04-14",-25],
@@ -260,23 +262,84 @@ const SCEN = [
   ["AMC 72$: 'maymun ordusu' kazandı mı?","AMC","y","2021-06-02",-40],
   ["3 yıl sonra: 'Roaring Kitty' tek tweet attı, GME +%70 açılıyor","GME","y","2024-05-13",-30],
   ["Kamyon girişimi Nikola'ya 'sahtecilik' raporu","NKLA","y","2020-09-10",-40],
+  // === PK_E: Niş olaylar (data6.js) ===
+  ["Dolar/TL 7'yi gördü: rahip krizi ve yaptırım pazartesisi","USDTRY=X","y","2018-08-13",-10],
+  ["ECB'nin dev QE'si kapıda: İsviçre MB 1,20 tabanını ne kadar savunabilir?","EURCHF=X","y","2015-01-15",-15],
+  ["UBS, Credit Suisse'i hafta sonu zorla devraldı: ilk gün kapanışı","UBS","y","2023-03-20",12],
+  ["Kodak iki günde +%1.150: devletten ilaç üretimi kredisi","KODK","y","2020-07-29",-55],
+  ["Pfizer aşısı %90 etkili: 'kapanan dünyanın' hissesi Carnival","CCL","y","2020-11-09",39],
+  ["Bitcoin tek günde -%39: 4.800$ — kapitülasyon mu, ölüm mü?","BTC","b","2020-03-13",16],
+  ["Porsche, VW'nin %74'ünü kontrol ettiğini açıkladı: short'lar kıstırıldı","VOW.DE","y","2008-10-27",147],
+  ["Kara Pazartesi'nin ertesi sabahı: S&P tek günde -%20,5","^GSPC","y","1987-10-19",5],
+  ["Lehman Brothers iflas başvurusu yaptı: piyasa nasıl açılır?","^GSPC","y","2008-09-15",-5],
+  ["Hindenburg raporu: Adani'de ilk gün sadece -%1,5","ADANIENT.NS","y","2023-01-25",-18],
+  ["Mini bütçe şoku: sterlin tek günde -%3,6, 'parite' manşetleri","GBPUSD=X","y","2022-09-26",6],
+  ["Japonya 24 yıl sonra ilk kez yen aldı: dolar/yen döner mi?","JPY=X","y","2022-09-22",6],
+  ["Şanghay 1 yılda +%150: marjinli bireysel yatırımcı rekorda","000001.SS","y","2015-06-12",-25],
+  ["Moderna aşı verisiyle +%20 uçtu — aynı akşam yeni hisse sattı","MRNA","y","2020-05-18",-10],
+  ["Nikkei 38.915: Japonya dünyanın en değerli borsası (1989'un son günü)","^N225","y","1989-12-29",-38],
+  ["Nasdaq 5.000'i aştı: 'yeni ekonomi' coşkusu zirvede","^IXIC","y","2000-03-10",-12],
+  ["Netflix DVD işini 'Qwikster'a ayırıyor: zam üstüne kafa karışıklığı","NFLX","y","2011-09-19",-35],
+  ["Musk: 'Tesla'yı 420$'dan borsadan çekmeyi düşünüyorum. Fon hazır.'","TSLA","y","2018-08-07",-30],
+  ["Ethereum 1.400$: ICO çılgınlığı zirvede","ETH","b","2018-01-13",-38],
+  ["CME'de Bitcoin vadelisi açılıyor: 'kurumsal para geliyor'","BTC","b","2017-12-17",-40],
+  ["Arjantin'de Milei kazandı: petrol devi YPF nasıl açılır?","YPF","y","2023-11-20",40],
+  ["Ruble tarihi dipte: 'Rusya iflas eder' manşetleri","RUB=X","y","2022-03-10",-40],
+  ["Binance CEO'su 'FTT'lerimizi satıyoruz' dedi: FTX'in tokenı 22$'da","FTT","b","2022-11-07",-75],
+  ["Luckin Coffee: 'Satışların bir kısmı uyduruldu' itirafı","LKNCY","y","2020-04-02",-75],
 ];
+
+// Bilinen kaynak veri hataları için belgelenmiş düzeltmeler: ticker → {tarih: {c,h,l}}.
+// Yalnızca kamuya açık, iyi belgelenmiş değerler girilir; her satıra kaynak notu yaz.
+const DATA_FIX = {
+  // VW adi hisse, 28.10.2008 short squeeze zirvesi: kapanış 945€, gün içi 1.005,01€ (Yahoo 500€ gösteriyor)
+  "VOW.DE": { "2008-10-28": { c:945, h:1005.01 } },
+};
+function applyFix(ticker, series){
+  const fx = DATA_FIX[ticker]; if(!fx) return series;
+  for(const p of series){ const f = fx[iso(p.t)]; if(!f) continue;
+    Object.assign(p, f); p.h = Math.max(p.h, p.o, p.c); p.l = Math.min(p.l, p.o, p.c); }
+  return series;
+}
 
 const HOR_Y = { "1g":1, "1h":5, "1a":21, "3a":63, "6a":126, "1y":252 };
 const HOR_B = { "1g":1, "1h":7, "1a":30, "3a":90, "6a":180, "1y":365 };
 
+// Ağ çağrısı: 429 (hız sınırı) / 5xx'te üstel bekleme ile 5 kez yeniden dener.
+async function getJSON(url, opts, tag){
+  for(let a=0;;a++){
+    const r = await fetch(url, opts);
+    if(r.ok) return r.json();
+    if((r.status===429 || r.status>=500) && a<5){ await sleep(1500 * 2**a); continue; }
+    throw new Error(tag+"-"+r.status);
+  }
+}
+// Ham seri önbelleği (tools/.cache, git'e girmez): penceresi tamamen geçmişte kalan seri
+// artık değişmez → diske yazılır, sonraki çalıştırmada ağa gidilmez (hızlı + hız sınırı yok).
+const CACHE_DIR = new URL("./.cache/", import.meta.url);
+async function cachedSeries(key, closed, loader){
+  const f = new URL(key.replace(/[^\w.=-]/g,"_") + ".json", CACHE_DIR);
+  if(closed && fs.existsSync(f)) return { s: JSON.parse(fs.readFileSync(f,"utf8")), net:false };
+  const s = await loader();
+  if(closed && s.length){ fs.mkdirSync(CACHE_DIR, {recursive:true}); fs.writeFileSync(f, JSON.stringify(s)); }
+  return { s, net:true };
+}
+
 async function fetchYahoo(ticker, startTs, endTs){
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?period1=${startTs}&period2=${endTs}&interval=1d`;
-  const r = await fetch(url, { headers: { "User-Agent": UA } });
-  if(!r.ok) throw new Error("yahoo-"+r.status);
-  const j = await r.json();
+  const j = await getJSON(url, { headers: { "User-Agent": UA } }, "yahoo");
   const res = j?.chart?.result?.[0];
   if(!res) throw new Error("yahoo-empty");
   const ts = res.timestamp || [], q = res.indicators?.quote?.[0] || {};
   const out = [];
   for(let i=0;i<ts.length;i++){
-    if(q.close?.[i]==null) continue;
-    out.push({ t:ts[i], o:q.open[i]??q.close[i], h:q.high[i]??q.close[i], l:q.low[i]??q.close[i], c:q.close[i] });
+    const c = q.close?.[i]; if(c==null) continue;
+    let o = q.open[i]??c, h = q.high[i]??c, l = q.low[i]??c;
+    h = Math.max(h,o,c); l = Math.min(l,o,c);
+    // Yahoo'da ara sıra bozuk gün içi uçlar olur → analiz (en kötü/en iyi an) şişmesin
+    if(c>0 && (l<=0 || l<c*0.3)) l = Math.min(o,c);
+    if(c>0 && h>c*3.5) h = Math.max(o,c);
+    out.push({ t:ts[i], o, h, l, c });
   }
   return out;
 }
@@ -284,8 +347,7 @@ async function fetchBinance(sym, startMs, endMs){
   const out = []; let cur = startMs;
   while(cur < endMs){
     const url = `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=1d&startTime=${cur}&endTime=${endMs}&limit=1000`;
-    const r = await fetch(url); if(!r.ok) throw new Error("binance-"+r.status);
-    const arr = await r.json(); if(!arr.length) break;
+    const arr = await getJSON(url, {}, "binance"); if(!arr.length) break;
     for(const k of arr) out.push({ t:Math.floor(k[0]/1000), o:+k[1], h:+k[2], l:+k[3], c:+k[4] });
     cur = arr[arr.length-1][0] + DAY*1000;
     if(arr.length < 1000) break;
@@ -300,7 +362,9 @@ async function fetchBinance(sym, startMs, endMs){
 function anchorIdx(series, eventDateISO, storedPct){
   let e = -1;
   for(let i=0;i<series.length;i++){ if(iso(series[i].t) >= eventDateISO){ e = i; break; } }
-  if(e < 1) return {base:-1};
+  if(e < 0) return {base:-1};
+  // Halka arz: olay serinin ilk barı → öncesi yok; tek aday ilk gün kapanışı ("ilk gün sonrası" kararı)
+  if(e === 0) return series.length > 1 ? {base:0} : {base:-1};
   const sgn = storedPct>0 ? 1 : storedPct<0 ? -1 : 0;
   let best = null;
   for(const b of [e-1, e]){
@@ -322,10 +386,13 @@ async function run(){
     if(src === "-" || !ticker){ out[title] = {hidden:true}; rows.push({title, note:"GİZLİ"}); continue; }
     try{
       const startTs = eventTs - DAY*130, endTs = Math.min(eventTs + DAY*400, now);
-      let series;
-      if(src === "b"){ const sym = ticker==="BTC"?"BTCUSDT":ticker==="ETH"?"ETHUSDT":ticker+"USDT"; series = await fetchBinance(sym, startTs*1000, endTs*1000); }
-      else series = await fetchYahoo(ticker, startTs, endTs);
-      await sleep(280);
+      const closed = eventTs + DAY*400 < now - DAY*3; // pencere tamamen geçmişte → önbelleğe alınabilir
+      const { s:series, net } = await cachedSeries(`${src}_${ticker}_${dateISO}`, closed, ()=>{
+        if(src === "b"){ const sym = ticker==="BTC"?"BTCUSDT":ticker==="ETH"?"ETHUSDT":ticker+"USDT"; return fetchBinance(sym, startTs*1000, endTs*1000); }
+        return fetchYahoo(ticker, startTs, endTs);
+      });
+      if(net) await sleep(350);
+      applyFix(ticker, series);
       if(series.length < 3) throw new Error("az-veri");
       const a = anchorIdx(series, dateISO, storedPct);
       const bi = a.base;
@@ -342,11 +409,38 @@ async function run(){
         if(ti<series.length && iso(series[ti].t) <= iso(now)){ ret[k] = +(((series[ti].c-base)/base)*100).toFixed(2); days[k] = iso(series[ti].t); }
         else { ret[k] = null; days[k] = null; }
       }
-      out[title] = { ticker, src, baseDate, base:rp(base), pre, ret, days };
+      // --- Analiz verisi ---
+      const pct = v => +(((v-base)/base)*100).toFixed(1);
+      // ext[vade] = [en kötü an %, en iyi an %] — baz'dan sonra vade sonuna kadar gün içi dip/tepe.
+      // Pozisyonun yol boyunca yaşattığı acıyı/fırsatı ölçer (stop testi, kâr geri verme).
+      const ext = {};
+      for(const [k,off] of Object.entries(HOR)){
+        if(ret[k]==null){ ext[k] = null; continue; }
+        let mn = Infinity, mx = -Infinity;
+        for(let j=bi+1; j<=bi+off; j++){ if(series[j].l<mn) mn=series[j].l; if(series[j].h>mx) mx=series[j].h; }
+        ext[k] = [pct(mn), pct(mx)];
+      }
+      // post = olay sonrası kapanış yolu [baz'dan takvim günü, kapanış]; grafikte gerçek
+      // yolu çizmek için. Boyut için örneklenir: ilk 21 seans günlük, 63'e kadar 3'te bir,
+      // sonrası 7'de bir; vade uç noktaları ve son veri her zaman dahil.
+      const post = [], offs = new Set(Object.values(HOR)), bt = series[bi].t;
+      for(let j=1; j<=HOR["1y"] && bi+j<series.length; j++){
+        if(iso(series[bi+j].t) > iso(now)) break;
+        const last = j===HOR["1y"] || bi+j===series.length-1;
+        if(j<=21 || (j<=63 && j%3===0) || j%7===0 || offs.has(j) || last)
+          post.push([Math.round((series[bi+j].t-bt)/DAY), rp(series[bi+j].c)]);
+      }
+      // dv = olay öncesi (≤60 seans) günlük oynaklık (% std, log getiri) → pozisyon boyutu analizi
+      const pc = series.slice(Math.max(0,bi-59), bi+1).map(p=>p.c), rs = [];
+      for(let i=1;i<pc.length;i++) if(pc[i-1]>0 && pc[i]>0) rs.push(Math.log(pc[i]/pc[i-1]));
+      const mu = rs.reduce((a,b)=>a+b,0)/(rs.length||1);
+      const dv = rs.length>2 ? +(Math.sqrt(rs.reduce((a,b)=>a+(b-mu)**2,0)/(rs.length-1))*100).toFixed(2) : null;
+      // gap = baz sonrası ilk seansın AÇILIŞI (%) → stop emri boşlukta açılış fiyatından dolar (stop analizi)
+      const gap = bi+1 < series.length ? pct(series[bi+1].o) : null;
+      out[title] = { ticker, src, baseDate, base:rp(base), pre, ret, days, ext, post, dv, gap };
       rows.push({ title, ticker, baseDate, base:rp(base), ret, storedPct });
     }catch(e){ out[title] = {error:String(e.message)}; rows.push({title, ticker, note:"❌ "+e.message}); }
   }
-  const fs = await import("fs");
   fs.writeFileSync(new URL("../realdata.js", import.meta.url), "window.PK_REAL = " + JSON.stringify(out) + ";\n");
   // yazım tablosu: her senaryonun tüm vade getirileri
   console.log("\n=== YAZIM TABLOSU: gerçek getiriler (%) | hikaye ===");

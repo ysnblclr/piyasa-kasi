@@ -195,6 +195,21 @@
   .lesson-item .src{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.4px;}
   .lesson-item b{color:var(--gold);}
 
+  /* analiz: trade analizi kutusu + Analizim ekranı */
+  .ta-box{background:rgba(56,139,253,.06); border:1px solid rgba(56,139,253,.35); border-radius:10px; padding:10px 12px; margin:10px 0;}
+  .ta-box h3{font-size:14px; color:var(--blue); margin-bottom:4px;}
+  .ta-box ul{list-style:none;}
+  .ta-box li{font-size:13px; line-height:1.55; padding:4px 0; border-bottom:1px dashed rgba(45,55,72,.7);}
+  .ta-box li:last-child{border-bottom:0;}
+  .an-row{display:flex; align-items:center; gap:8px; font-size:13px; margin:6px 0;}
+  .an-row .nm{flex:0 0 46%; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .an-bar{flex:1; height:8px; background:var(--card2); border:1px solid var(--border); border-radius:5px; overflow:hidden;}
+  .an-bar>i{display:block; height:100%;}
+  .an-row .vl{flex:0 0 52px; text-align:right; font-weight:700;}
+  .an-prof{display:flex; align-items:center; gap:12px; background:var(--card2); border:1px solid var(--border); border-radius:12px; padding:12px; margin-top:10px;}
+  .an-prof .em{font-size:40px; line-height:1;}
+  .an-score{font-size:32px; font-weight:800; line-height:1;}
+
   /* sıralama */
   .lb-list{list-style:none;}
   .lb-row{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; margin-bottom:3px; background:var(--card2); font-size:13px; border:1px solid transparent;}
@@ -256,6 +271,7 @@
   <div class="nav-items">
     <button class="nav-btn" data-v="oyna" onclick="navGo('oyna')">🏠 Oyna</button>
     <button class="nav-btn" data-v="hesap" onclick="navGo('hesap')">👤 Hesabım</button>
+    <button class="nav-btn" data-v="analiz" onclick="navGo('analiz')">📊 Analizim</button>
     <button class="nav-btn" data-v="sira" onclick="navGo('sira')">🏆 Sıralamalar</button>
     <button class="nav-btn" data-v="ilgi" onclick="navGo('ilgi')">🎯 İlgi Alanım</button>
     <button class="nav-btn" data-v="disiplin" onclick="navGo('disiplin')">🧠 Disiplin Kazan</button>
@@ -310,15 +326,17 @@
 </div>
 
 <script src="vendor-lightweight-charts.js"></script>
-<script src="realdata.js?v=14"></script>
+<script src="realdata.js?v=15"></script>
 <script src="data1.js?v=12"></script>
 <script src="data2.js?v=12"></script>
 <script src="data3.js?v=12"></script>
 <script src="data4.js?v=12"></script>
 <script src="data5.js?v=12"></script>
+<script src="data6.js?v=2"></script>
 <script>
 /* ================= havuz + tur kurulumu ================= */
-const SCENARIOS_ALL = window.PK_A.concat(window.PK_B, window.PK_C, window.PK_D);
+// Sıra önemli: pk_used indeksleri bu sıraya bağlı → yeni dosyalar hep SONA eklenir
+const SCENARIOS_ALL = window.PK_A.concat(window.PK_B, window.PK_C, window.PK_D, window.PK_E || []);
 const ROUND = 10;
 const START_BAL = 10000;
 
@@ -347,9 +365,9 @@ function interestOf(sc){
   if(t==="tr" || /dolar\/tl|bist|banka endeksi|xbank|türk hava|gram alt/.test(n)) return "tr";
   if(t==="kripto" || /bitcoin|ethereum|solana|xrp|dogecoin|luna|coinbase|microstrategy/.test(n)) return "kripto";
   if(t==="emtia" || /alt[ıi]n|güm[üu]ş|petrol|brent|wti|doğalgaz|bak[ıi]r|kakao|uranyum|lityum|buğday|platin/.test(n)) return "emtia";
-  if(t==="meme" || /gamestop|amc|bed bath|nikola|hertz|robinhood/.test(n)) return "meme";
+  if(t==="meme" || /gamestop|amc|bed bath|nikola|hertz|robinhood|kodak/.test(n)) return "meme";
   if(t==="ipo" || /spacex/.test(n)) return "ipo";
-  if(t==="endeks" || t==="fed" || t==="makro" || /s&p|nasdaq|dow|russell|dax|nikkei|kospi|stoxx|dolar endeksi|xiv|bölgesel bank|tahvil/.test(n)) return "endeks";
+  if(t==="endeks" || t==="fed" || t==="makro" || /s&p|nasdaq|dow|russell|dax|nikkei|kospi|stoxx|şanghay|dolar endeksi|xiv|bölgesel bank|tahvil|eur\/chf|gbp\/usd|usd\/jpy|usd\/rub/.test(n)) return "endeks";
   if(/nvidia|amd|meta|google|alphabet|microsoft|apple|amazon|palantir|super micro|broadcom|arm|tsmc|asml|intel|micron|dell|oracle|salesforce|adobe|snowflake|crowdstrike|netflix|tesla|paypal|shopify|zoom|docusign|peloton|qualcomm|vertiv|sk hynix|snap/.test(n)) return "tech";
   return "stock";
 }
@@ -434,10 +452,12 @@ function qVadeFor(){
 }
 
 /* ================= çözülen sorular arşivi ================= */
-function saveToArchive(sc, choice, risk, pnl, effPct, vadeLabel, storyOverride){
+function saveToArchive(sc, choice, risk, pnl, effPct, vadeLabel, storyOverride, extra){
   let arc = []; try{ arc = JSON.parse(store.get("pk_archive")||"[]"); }catch(e){}
-  arc.unshift({ n:sc.name, cat:sc.cat, t:sc.title, d:sc.date, v:vadeLabel||vadeOf(sc),
-    c:choice, r:risk, p:Math.round(pnl), pct:(typeof effPct==="number"?effPct:sc.pct), story:storyOverride||sc.story, les:sc.les, ts:Date.now() });
+  // pl/tp/ar + extra (mae/mfe/sh) → 📊 Analizim ekranı bu alanlardan oyuncu profili çıkarır
+  arc.unshift(Object.assign({ n:sc.name, cat:sc.cat, t:sc.title, d:sc.date, v:vadeLabel||vadeOf(sc),
+    c:choice, r:risk, p:Math.round(pnl), pct:(typeof effPct==="number"?effPct:sc.pct), story:storyOverride||sc.story, les:sc.les, ts:Date.now(),
+    pl:currentPlayer()||"", tp:sc.t, ar:interestOf(sc) }, extra||{}));
   if(arc.length > 300) arc.length = 300;
   store.set("pk_archive", JSON.stringify(arc));
 }
@@ -497,6 +517,7 @@ function navGo(v){
     else showIntro();
   }
   else if(v==="hesap") showAccount();
+  else if(v==="analiz") showAnalysis();
   else if(v==="sira") showGlobalBoard("nav");
   else if(v==="ilgi") showInterests();
   else if(v==="disiplin") showDiscipline();
@@ -525,6 +546,7 @@ function showAccount(){
     ${reg
       ? `<button class="btn-pass" style="width:100%;margin-top:12px" onclick="doLogout()">🚪 Çıkış Yap</button>`
       : `<button class="btn-primary" style="background:var(--green)" onclick="showRegister('nav')">🌍 Kaydol ve Sıralamaya Gir</button>`}
+    <button class="btn-primary" style="margin-top:10px" onclick="showAnalysis()">📊 Karar Analizim</button>
     <button class="btn-pass" style="width:100%;margin-top:10px" onclick="resetBankroll()">🔄 Kasayı Sıfırla ($10.000)</button>
     <button class="btn-pass" style="width:100%;margin-top:10px" onclick="switchPlayer()">👥 Oyuncu Değiştir</button>
     <button class="btn-primary" style="margin-top:10px" onclick="showIntro()">← Oyuna Dön</button>
@@ -1021,8 +1043,20 @@ function make5(sc){
   let i=0; while(out.length<5 && i<fill.length){ out.push(fill[i++]); }
   return out.slice(0,5);
 }
+function addDays(isoDate, n){ return new Date(Date.parse(isoDate+"T00:00:00Z") + n*86400000).toISOString().slice(0,10); }
 function buildPostLine(r, effKey){
   const pts = [{time:r.baseDate, value:r.base}];
+  const endDate = r.days && r.days[effKey];
+  // Gerçek günlük yol (r.post = [baz'dan takvim günü, kapanış]) varsa onu çiz
+  if(r.post && r.post.length && endDate){
+    for(const [o,c] of r.post){
+      const t = addDays(r.baseDate, o);
+      if(t > endDate) break;
+      if(t > pts[pts.length-1].time) pts.push({time:t, value:c});
+    }
+    if(pts[pts.length-1].time < endDate) pts.push({time:endDate, value:+(r.base*(1+r.ret[effKey]/100)).toFixed(4)});
+    return pts;
+  }
   for(const k of VADE_ORDER){
     if(r.days[k] && r.ret[k]!=null){ pts.push({time:r.days[k], value:+(r.base*(1+r.ret[k]/100)).toFixed(4)}); }
     if(k===effKey) break;
@@ -1048,6 +1082,16 @@ function renderCandles(elId, pre, postLine){
     const up = postLine[postLine.length-1].value>=postLine[0].value;
     const ls = chart.addLineSeries({ color: up?'#3fb950':'#f85149', lineWidth:2, lastValueVisible:false, priceLineVisible:false, lineStyle:0 });
     ls.setData(postLine);
+    // Yol üstünde dip ve tepe: pozisyonun yaşadığı en kötü/en iyi anı gösterir
+    if(postLine.length > 3){
+      let lo = 1, hi = 1;
+      for(let i=1;i<postLine.length;i++){ if(postLine[i].value < postLine[lo].value) lo = i; if(postLine[i].value > postLine[hi].value) hi = i; }
+      const mk = [];
+      if(postLine[lo].value < postLine[0].value) mk.push({ time:postLine[lo].time, position:'belowBar', color:'#f85149', shape:'arrowUp', text:'dip' });
+      if(postLine[hi].value > postLine[0].value) mk.push({ time:postLine[hi].time, position:'aboveBar', color:'#3fb950', shape:'arrowDown', text:'tepe' });
+      mk.sort((a,b)=> a.time<b.time ? -1 : a.time>b.time ? 1 : 0);
+      if(mk.length) ls.setMarkers(mk);
+    }
   }
   chart.timeScale().fitContent();
   window.__chart = chart;
@@ -1056,7 +1100,236 @@ function renderCandles(elId, pre, postLine){
   window.addEventListener('resize', window.__chartResize);
 }
 
+/* ================= 📐 Trade analizi (gerçek veri: r.ext / r.dv) ================= */
+const STOP_PCT = 8; // klasik %7-8 stop kuralı
+const HOR_N = { y:{"1g":1,"1h":5,"1a":21,"3a":63,"6a":126,"1y":252}, b:{"1g":1,"1h":7,"1a":30,"3a":90,"6a":180,"1y":365} };
+function sgnPct(v){ return (v>0?"+":"") + v.toFixed(1) + "%"; }
+function cPct(v){ return `<b style="color:${v>=0?'var(--green-bright)':'var(--red-bright)'}">${sgnPct(v)}</b>`; }
+// Döner: {html, m} — m arşive/analize yazılan metrikler (mae/mfe: pozisyon yönünde en kötü/en iyi an %, sh: stop tetiklenir miydi)
+function tradeAnalysis(r, effKey, choice, risk, bal){
+  const e = r.ext && r.ext[effKey];
+  if(!e || r.ret[effKey]==null) return { html:"", m:{} };
+  const [mn, mx] = e, end = r.ret[effKey], d = choice==="long" ? 1 : choice==="short" ? -1 : 0;
+  const lbl = VADE_LBL[effKey], li = [], m = {};
+  if(d){
+    const mae = d>0 ? mn : -mx, mfe = d>0 ? mx : -mn, fin = d*end;
+    m.mae = mae; m.mfe = mfe;
+    const kasaHit = risk*mae; // en kötü anda kasanın yüzde kaçı eriyordu
+    li.push(mae < 0
+      ? `📉 <b>En kötü an:</b> pozisyon ${lbl} içinde ${cPct(mae)} gördü → o anda kasan <b style="color:var(--red-bright)">${fmt$(bal*kasaHit/100)}</b> eksideydi.` +
+        (kasaHit <= -50 ? ` ⚠️ Bu, kasanın %${Math.round(-kasaHit)}'i — gerçekte teminat çağrısı (margin call) pozisyonu o anda zorla kapatırdı.` : "")
+      : `💪 <b>Pozisyon hiç eksiye düşmedi</b> — girişten itibaren hep kârdaydı.`);
+    if(mfe > 0) li.push(`📈 <b>En iyi an:</b> ${cPct(mfe)} kâr görmüştün; vade sonunda ${cPct(fin)} ile kapandı` +
+      (mfe - fin >= 5 ? ` → <b>${(mfe-fin).toFixed(1)} puanlık kârı geri verdin</b> (kâr alma / iz süren stop planı).` : "."));
+    const hit = mae <= -STOP_PCT; m.sh = hit ? 1 : 0;
+    // Açılış boşluğu stop seviyesinin ötesindeyse emir stop fiyatından değil açılıştan dolar
+    const pg = typeof r.gap==="number" ? d*r.gap : null;
+    const exitAt = (pg!=null && pg <= -STOP_PCT) ? pg : -STOP_PCT;
+    const gapTxt = exitAt < -STOP_PCT ? ` (fiyat stop'un ötesinde boşlukla açıldı → emir −%${STOP_PCT}'de değil ${cPct(exitAt)}'de dolardı)` : "";
+    if(!hit) li.push(`✅ <b>%${STOP_PCT} stop</b> hiç tetiklenmezdi — plan içinde kalan bir işlem.`);
+    else if(fin >= 0) li.push(`⛔ <b>%${STOP_PCT} stop</b> koysaydın tetiklenir, ${cPct(exitAt)} ile çıkardın${gapTxt} — oysa vade sonunda ${cPct(fin)}. Stop mesafesi varlığın oynaklığına göre ayarlanmalı.`);
+    else if(exitAt < -STOP_PCT && exitAt - fin < 0.5) li.push(`🕳️ <b>%${STOP_PCT} stop işe yaramazdı:</b> fiyat tek hamlede boşlukla ${cPct(exitAt)}'e açıldı. Stop, boşluk (gap) riskine karşı koruma değildir — asıl koruma pozisyon boyutudur.`);
+    else if(fin < exitAt) li.push(`🛡️ <b>%${STOP_PCT} stop</b> zararını ${cPct(exitAt)}'de keserdi${gapTxt}; vade sonu ${cPct(fin)} → <b>${(exitAt-fin).toFixed(1)} puan</b> korunurdun.`);
+    else li.push(`⚠️ <b>%${STOP_PCT} stop</b> tetiklenirdi${gapTxt}, vade sonu ise ${cPct(fin)} — stop seni toparlanmadan önce dışarı alırdı.`);
+  } else {
+    li.push(`🔎 <b>LONG</b> girseydin yol boyunca en kötü an ${cPct(mn)}, <b>SHORT</b> girseydin ${cPct(-mx)} olurdu; ${lbl} sonunda hareket ${cPct(end)}.`);
+    li.push(Math.abs(end) >= 10
+      ? `💸 ${cPct(end)}'lik büyük hareket kaçtı — doğru yönü seçip bu sarsıntıya dayanabilen kazanırdı.`
+      : `🦉 Hareket sınırlı kaldı — PAS makul bir karardı.`);
+  }
+  // En iyi çıkış vadesi (seçilen yönde; PAS'ta en büyük mutlak fırsat)
+  const best = VADE_ORDER.filter(k=>r.ret[k]!=null)
+    .map(k=>({k, v: d ? d*r.ret[k] : Math.abs(r.ret[k]), raw:r.ret[k]})).sort((a,b)=>b.v-a.v)[0];
+  if(best && best.k !== effKey){
+    if(!d) li.push(`🎯 En büyük fırsat <b>${VADE_LBL[best.k]}</b> vadesindeydi: ${best.raw>=0?"LONG":"SHORT"} ${cPct(best.v)}.`);
+    else if(best.v > 0) li.push(`🎯 Bu yönde en iyi çıkış <b>${VADE_LBL[best.k]}</b> olurdu (${cPct(best.v)}).`);
+    else li.push(`🧭 Bu yönde <b>hiçbir vadede kâr yoktu</b> (en az kayıp ${VADE_LBL[best.k]}: ${cPct(best.v)}) — yön yanlışsa beklemek kurtarmaz.`);
+  }
+  // Oynaklığa göre pozisyon boyutu: kasa salınımını ~±%2'de tutacak büyüklük
+  if(r.dv){
+    const n = (HOR_N[r.src]||HOR_N.y)[effKey] || 1, sig = r.dv*Math.sqrt(n);
+    const sug = Math.max(5, Math.min(50, Math.round(200/sig/5)*5));
+    const f = v => v < 1 ? v.toFixed(2) : v.toFixed(v < 10 ? 1 : 0);
+    li.push(`📐 Olay öncesi günlük oynaklık ±%${f(r.dv)} → ${lbl} vadede tipik salınım ±%${f(sig)}. ` +
+      (d ? `%${Math.round(risk*100)} pozisyonla kasan tipik olarak ±%${f(risk*sig)} sallanır; kasa riskini` : `Kasa riskini`) +
+      ` ~±%2'de tutacak pozisyon ≈ <b>%${sug}</b>.`);
+    // Kara kuğu: gerçekleşen uç hareket, geçmiş oynaklığın öngördüğünün çok üstünde
+    const tail = Math.max(Math.abs(mn), Math.abs(mx)) / sig;
+    if(tail >= 4) li.push(`🦢 <b>Kara kuğu:</b> gerçekleşen hareket tipik salınımın <b>${tail.toFixed(0)} katı</b>. Geçmiş oynaklık bu riski göstermiyordu — düşük oynaklık, risk yokluğu değildir; pozisyon boyutu "ya yanılıyorsam?" sorusuna göre seçilir.`);
+  }
+  return { html:`<div class="ta-box"><h3>📐 Trade Analizi</h3><ul>${li.map(x=>`<li>${x}</li>`).join("")}</ul></div>`, m };
+}
+
+/* ================= 📊 Analizim: oyuncunun tüm kararlarının analizi ================= */
+// Zaaf kalıpları: ilgili ders anahtarlarında, belirtilen yönde verilen YANLIŞ kararlar sayılır
+const ARCHETYPES = [
+  {k:"fomo",  ic:"🔥", t:"FOMO / kalabalığı kovalama", d:"Coşkunun zirvesinde, herkesin konuştuğu hareketi LONG'la kovalıyorsun.",
+   les:["kalabalik","yorgun","sat","ipo","split","endeks","fiyat","cita","spike"], dir:"long", tool:"checklist-view", tn:"İşlem Öncesi Kontrol Listesi"},
+  {k:"panik", ic:"😱", t:"Panikte satma", d:"Sert düşüş/şok anında SHORT'a geçiyorsun — oysa bu anlar sık sık dönüş noktası.",
+   les:["panik","jeo","lehman","ayi","baglam","acil"], dir:"short", tool:"em-red-view", tn:"Zarar Protokolü"},
+  {k:"bicak", ic:"🔪", t:"Düşen bıçağı tutma", d:"'Ucuzladı' diye yapısal bozulmada LONG'a giriyorsun.",
+   les:["ucuz","olum","bulas","hik","reg","oper","guid"], dir:"long", tool:"mindset-view", tn:"Zihniyet Kartları"},
+  {k:"trend", ic:"🌊", t:"Trende karşı gitme", d:"Güçlü kırılımı/trendi 'pahalı' diye SHORT'luyorsun.",
+   les:["zirve","trend","kazanan","donus","semp","arz","sqz"], dir:"short", tool:"wizard-view", tn:"Gelişmiş Asistan"},
+];
+function myArchive(){
+  let arc = []; try{ arc = JSON.parse(store.get("pk_archive")||"[]"); }catch(e){}
+  const cur = currentPlayer() || "";
+  const mine = arc.filter(a=>a.pl && a.pl===cur);
+  const A = mine.length ? mine : arc.filter(a=>!a.pl); // eski (oyuncusuz) kayıtlar için geri dönüş
+  const byT = new Map(SCENARIOS_ALL.map(s=>[s.title, s]));
+  // Senaryonun GÜNCEL sınıflandırması öncelikli (senaryo yeniden sınıflanırsa geçmiş analiz de düzelir)
+  return A.map(a=>{ const s = byT.get(a.t); return Object.assign({}, a, { tp:(s&&s.t) || a.tp || "", ar:(s ? interestOf(s) : a.ar) || "stock" }); });
+}
+function hitRate(arr){ const d = arr.filter(a=>a.c!=="pass" && a.p!==0); return d.length ? d.filter(a=>a.p>0).length/d.length : null; }
+function anBar(v, col){ return `<div class="an-bar"><i style="width:${Math.max(3, Math.round(v*100))}%;background:${col}"></i></div>`; }
+function anRow(name, n, v, txt){
+  const col = v>=0.5 ? "var(--green-bright)" : "var(--red-bright)";
+  return `<div class="an-row"><span class="nm">${name} <span class="muted">(${n})</span></span>${anBar(v,col)}<span class="vl" style="color:${col}">${txt}</span></div>`;
+}
+function groupHit(A, key, nameOf){
+  const g = {};
+  A.filter(a=>a.c!=="pass").forEach(a=>{ (g[a[key]] = g[a[key]] || []).push(a); });
+  return Object.entries(g).map(([k,arr])=>({ name:nameOf(k), n:arr.length, hit:hitRate(arr) }))
+    .filter(x=>x.hit!=null).sort((a,b)=>b.n-a.n || b.hit-a.hit);
+}
+function sparkSVG(vals){
+  if(vals.length < 2) return "";
+  const W=560, H=90, mn=Math.min(0,...vals), mx=Math.max(0,...vals), rg=(mx-mn)||1;
+  const X = i=>(i/(vals.length-1))*W, Y = v=>H-6-((v-mn)/rg)*(H-12);
+  const d = vals.map((v,i)=>(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)).join(" ");
+  const col = vals[vals.length-1]>=0 ? "var(--green-bright)" : "var(--red-bright)";
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:90px;display:block" role="img" aria-label="Kümülatif kâr/zarar">
+    <line x1="0" x2="${W}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--border)" stroke-dasharray="4 4"/>
+    <path d="${d}" fill="none" stroke="${col}" stroke-width="2.2" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function showAnalysis(){
+  setView("analiz"); updateTopicPanel(null);
+  const A = myArchive(), n = A.length; // en yeni önde
+  if(n < 5){
+    screen.innerHTML = `<div class="card fade-in"><span class="tag hot">📊 Analizim</span>
+      <div style="text-align:center;padding:26px 8px"><div style="font-size:48px">📊</div>
+      <h2 style="margin-top:8px">Analiz için en az 5 karar gerekli</h2>
+      <p class="muted" style="margin-top:6px">Şu an ${n} kararın var. Birkaç soru daha çöz — karar profilini, zaaflarını ve disiplin skorunu burada göreceksin.</p></div>
+      <button class="btn-primary" onclick="navGo('oyna')">🚀 Oynamaya Devam</button></div>`;
+    return;
+  }
+  const avg = (arr,f)=>arr.length ? arr.reduce((s,a)=>s+f(a),0)/arr.length : 0;
+  const fin = a => (a.c==="long" ? 1 : -1) * a.pct; // pozisyon yönünde vade sonu hareketi
+  const trades = A.filter(a=>a.c!=="pass"), passes = A.filter(a=>a.c==="pass");
+  const longs = trades.filter(a=>a.c==="long"), shorts = trades.filter(a=>a.c==="short");
+  const wins = trades.filter(a=>a.p>0), losses = trades.filter(a=>a.p<0);
+  const hit = hitRate(A), hitL = hitRate(longs), hitS = hitRate(shorts);
+  const tradePnl = trades.reduce((s,a)=>s+a.p,0);
+  const longShare = trades.length ? longs.length/trades.length : 0, passShare = passes.length/n;
+  const upShare = A.filter(a=>a.pct>0).length/n; // taban oran: senaryoların gerçekte yükselme payı
+  const avgRisk = avg(trades,a=>a.r), rWin = avg(wins,a=>a.r), rLoss = avg(losses,a=>a.r);
+  const avgWin = avg(wins,a=>a.p), avgLoss = avg(losses,a=>a.p);
+  const missed = passes.filter(a=>Math.abs(a.pct)>=10).sort((x,y)=>Math.abs(y.pct)-Math.abs(x.pct));
+  const goodPass = passes.filter(a=>Math.abs(a.pct)<4).length;
+  const bigLoss = losses.filter(a=>a.r>=0.5);
+  const deep = losses.filter(a=>fin(a) < -STOP_PCT);
+  const maeW = wins.filter(a=>typeof a.mae==="number");
+
+  // Disiplin skoru (şeffaf, bileşenleri aşağıda listelenir)
+  let score = 50; const parts = [];
+  const add = (v,t)=>{ if(!v) return; score += v; parts.push([v,t]); };
+  if(hit!=null) add(Math.round((hit-0.5)*80), `İsabet oranı %${Math.round(hit*100)}`);
+  if(wins.length && losses.length && rLoss > rWin*1.1) add(-Math.min(20, Math.round((rLoss/rWin-1)*40)), "Yanlış kararlarda daha büyük pozisyon (aşırı özgüven)");
+  add(-Math.min(15, bigLoss.length*3), `%50 pozisyonla ${bigLoss.length} kayıp`);
+  add(Math.min(10, goodPass*2), `${goodPass} yerinde PAS`);
+  add(-Math.min(8, missed.length), `${missed.length} büyük hareket (≥%10) PAS'ta kaçtı`);
+  add(-Math.min(12, deep.length*2), `${deep.length} işlemde kayıp −%${STOP_PCT} stop seviyesini aştı`);
+  if(wins.length && losses.length && avgWin > Math.abs(avgLoss)) add(6, "Ortalama kazanç ortalama kayıptan büyük");
+  score = Math.max(0, Math.min(100, score));
+  const sCol = score>=65 ? "var(--green-bright)" : score>=45 ? "var(--gold)" : "var(--red-bright)";
+
+  // Profil: önce performansı bozan davranışlar (boyut/özgüven), sonra yön eğilimi, en son isabet düzeyi
+  let prof;
+  if(avgRisk>=0.38 && (hit??0)<0.55) prof = ["🎰","Kumarbaz Eğilimi","Büyük oynuyorsun ama isabetin bu boyutu taşımıyor."];
+  else if(avgRisk>=0.38)             prof = ["🦁","Agresif Avcı","Büyük oynuyorsun ve isabetin destekliyor — tek bir hata serisi kasayı yakabilir."];
+  else if(losses.length>=2 && wins.length && rLoss > rWin*1.3) prof = ["🎲","Aşırı Özgüvenli","Emin olmadığın işlemlerde büyük oynuyorsun — birkaç büyük kayıp, kazançlarını eziyor."];
+  else if(passShare>=0.35)           prof = ["🦉","Temkinli Gözlemci","Seçici davranıyorsun; kaçan fırsatların maliyetini izle."];
+  else if(longShare>=0.78)           prof = ["🐂","Kalıcı Boğa","Neredeyse her olayda yükseliş bekliyorsun."];
+  else if(trades.length && longShare<=0.35) prof = ["🐻","Ayı Avcısı","Düşüş senaryolarına odaklısın."];
+  else if(hit!=null && hit<0.4)      prof = ["🌱","Yön Arayışında","İsabetin henüz düşük — pozisyonu küçük tut, önce olayın yönünü okumaya odaklan."];
+  else if(hit!=null && hit>=0.6)     prof = ["🎯","Keskin Nişancı","Yönü iyi okuyorsun — boyut disiplinini koruyarak bunu kasaya çevir."];
+  else                               prof = ["⚖️","Dengeli Trader","Yön ve boyut dağılımın dengeli."];
+
+  // Yön & boyut yanlılığı
+  const bias = [];
+  if(trades.length >= 4){
+    const gap = longShare - upShare;
+    bias.push(Math.abs(gap) >= 0.2
+      ? `<div class="lesson-item">${gap>0?"🐂 <b>Boğa yanlılığı:</b>":"🐻 <b>Ayı yanlılığı:</b>"} İşlemlerinin %${Math.round(longShare*100)}'i LONG; oysa senaryoların gerçekte %${Math.round(upShare*100)}'i yükseldi. Yönü olaya göre değil, alışkanlıkla seçiyor olabilirsin.</div>`
+      : `<div class="lesson-item">🧭 Yön seçimin dengeli: LONG payın %${Math.round(longShare*100)}, senaryoların gerçekte yükselme oranı %${Math.round(upShare*100)}.</div>`);
+  }
+  if(wins.length && losses.length){
+    bias.push(rLoss > rWin*1.1
+      ? `<div class="lesson-item">🎯 <b>Aşırı özgüven sinyali:</b> Yanlış çıktığın işlemlerde ortalama %${Math.round(rLoss*100)}, doğru çıktıklarında %${Math.round(rWin*100)} pozisyon açtın. Emin olmadığın anda büyük oynuyorsun.</div>`
+      : `<div class="lesson-item">🎯 Pozisyon boyutun isabetinle uyumlu: doğrularda %${Math.round(rWin*100)}, yanlışlarda %${Math.round(rLoss*100)} ortalama pozisyon.</div>`);
+    bias.push(`<div class="lesson-item">⚖️ <b>Kazanç/kayıp oranı:</b> ortalama kazanç ${fmt$(avgWin)}, ortalama kayıp ${fmt$(avgLoss)} → oran <b>${(avgWin/Math.abs(avgLoss)).toFixed(2)}</b>. ${avgWin>Math.abs(avgLoss) ? "Kazananları büyük, kaybedenleri küçük tutuyorsun." : (hit>=0.5 ? "Kayıpların kazançlarından büyük — isabet yüksek olsa bile kasa erir." : "Kayıpların kazançlarından büyük ve isabetin de düşük — önce kayıpları küçült (stop + pozisyon boyutu).")}</div>`);
+  }
+  if(maeW.length >= 2 && avg(maeW,a=>a.mae) <= -1) bias.push(`<div class="lesson-item">🩹 <b>Sabır testi:</b> Kazanan işlemlerin bile yol boyunca ortalama ${sgnPct(avg(maeW,a=>a.mae))} acı yaşattı. Doğru fikri kazanca çeviren şey, bu sarsıntıya dayanabilecek pozisyon boyutudur.</div>`);
+
+  // Zaaf profili
+  const weak = ARCHETYPES.map(w=>{
+    const rel = trades.filter(a=>w.les.includes(a.les));
+    const bad = rel.filter(a=>a.c===w.dir && a.p<0).length;
+    return Object.assign({}, w, { rel:rel.length, bad, rate: rel.length ? bad/rel.length : 0 });
+  }).filter(w=>w.rel>=2).sort((a,b)=>b.bad-a.bad || b.rate-a.rate);
+  const top = weak.find(w=>w.bad>=1);
+  const weakHtml = weak.length
+    ? weak.map(w=>`<div class="an-row"><span class="nm">${w.ic} ${w.t} <span class="muted">(${w.bad}/${w.rel})</span></span>${anBar(w.rate, w.rate>=0.34?"var(--red-bright)":"var(--gold)")}<span class="vl" style="color:${w.rate>=0.34?'var(--red-bright)':'var(--muted)'}">%${Math.round(w.rate*100)}</span></div>`).join("") +
+      (top ? `<div class="lesson-item" style="border-color:var(--blue);background:rgba(56,139,253,.08);cursor:pointer;margin-top:8px" onclick="openDiscipline('${top.tool}')">
+        <span class="src">${top.ic} En belirgin zaafın — ${top.t}</span>${top.d} <b style="color:var(--blue)">${top.tn} →</b></div>` : `<p class="muted" style="font-size:12.5px;margin-top:6px">Belirgin bir zaaf kalıbı yok 👏</p>`)
+    : `<p class="muted" style="font-size:13px">Zaaf kalıbı için her kategoride en az 2 ilgili işlem gerekli.</p>`;
+
+  const areaRows = groupHit(A, "ar", k=>(AREAS.find(x=>x[0]===k)||[k,k])[1]).map(x=>anRow(x.name, x.n, x.hit, "%"+Math.round(x.hit*100))).join("");
+  const topicRows = groupHit(A, "tp", k=>(window.PK_TOPICS[k]||{title:k}).title).slice(0,6).map(x=>anRow(x.name, x.n, x.hit, "%"+Math.round(x.hit*100))).join("");
+
+  // Gelişim: kronolojik ilk yarı vs ikinci yarı
+  const chrono = A.slice().reverse(), half = Math.floor(chrono.length/2);
+  const h1 = hitRate(chrono.slice(0,half)), h2 = hitRate(chrono.slice(half));
+  let cum = 0; const curve = chrono.map(a=>(cum += a.p));
+  const trend = (h1!=null && h2!=null)
+    ? (h2-h1 >= 0.08 ? `📈 Gelişiyorsun: isabet %${Math.round(h1*100)} → %${Math.round(h2*100)}` : h1-h2 >= 0.08 ? `📉 Son kararlarında isabet düştü: %${Math.round(h1*100)} → %${Math.round(h2*100)}` : `➡️ İsabetin istikrarlı: %${Math.round(h2*100)}`)
+    : "";
+
+  const missedHtml = missed.length
+    ? missed.slice(0,4).map(a=>`<div class="lesson-item"><span class="src">⚪ PAS · ${escapeHtml(a.n)} · ${escapeHtml(a.v||"")}</span>${escapeHtml(a.t)} → gerçekleşen ${cPct(a.pct)}</div>`).join("")
+    : `<p class="muted" style="font-size:13px">PAS'ta kaçırdığın ≥%10'luk hareket yok.</p>`;
+
+  const pct0 = v => v==null ? "—" : "%"+Math.round(v*100);
+  screen.innerHTML = `
+  <div class="card fade-in">
+    <span class="tag hot">📊 Analizim</span> <span class="muted" style="font-size:12px">${n} karar · ${escapeHtml(currentPlayer()||"")}</span>
+    <div class="an-prof"><div class="em">${prof[0]}</div>
+      <div style="min-width:0"><div style="font-weight:800;font-size:17px">${prof[1]}</div><div class="muted" style="font-size:13px">${prof[2]}</div></div>
+      <div style="margin-left:auto;text-align:center"><div class="an-score" style="color:${sCol}">${score}</div><div class="muted" style="font-size:10.5px;letter-spacing:.4px">DİSİPLİN SKORU</div></div></div>
+    <div class="stats-grid">
+      <div class="stat"><div class="v" style="color:${(hit??0)>=0.5?'var(--green-bright)':'var(--red-bright)'}">${pct0(hit)}</div><div class="l">İsabet</div></div>
+      <div class="stat"><div class="v" style="color:${tradePnl>=0?'var(--green-bright)':'var(--red-bright)'}">${fmt$(tradePnl)}</div><div class="l">Toplam K/Z</div></div>
+      <div class="stat"><div class="v">${trades.length ? fmt$(tradePnl/trades.length) : "—"}</div><div class="l">İşlem Başına</div></div>
+      <div class="stat"><div class="v">${pct0(hitL)}</div><div class="l">LONG İsabet (${longs.length})</div></div>
+      <div class="stat"><div class="v">${pct0(hitS)}</div><div class="l">SHORT İsabet (${shorts.length})</div></div>
+      <div class="stat"><div class="v">%${Math.round(passShare*100)}</div><div class="l">PAS Oranı</div></div>
+    </div>
+    <div class="lesson-summary"><h3>📈 Kümülatif Kâr/Zarar ${trend ? `<span class="muted" style="font-size:12px;font-weight:400">· ${trend}</span>` : ""}</h3>${sparkSVG(curve)}</div>
+    ${bias.length ? `<div class="lesson-summary"><h3>🧭 Yön & Boyut Analizi</h3>${bias.join("")}</div>` : ""}
+    <div class="lesson-summary"><h3>🧠 Zaaf Profili</h3>${weakHtml}</div>
+    ${areaRows ? `<div class="lesson-summary"><h3>🗂️ Alan Bazında İsabet</h3>${areaRows}</div>` : ""}
+    ${topicRows ? `<div class="lesson-summary"><h3>📚 Olay Tipine Göre İsabet</h3>${topicRows}</div>` : ""}
+    <div class="lesson-summary"><h3>💸 PAS'ta Kaçan Büyük Hareketler</h3>${missedHtml}</div>
+    <details class="arc-item" style="margin-top:12px"><summary style="padding:10px 12px;cursor:pointer">🧮 Disiplin skoru nasıl hesaplandı?</summary>
+      <div style="padding:4px 12px 10px;font-size:13px">Başlangıç 50 · ${parts.map(p=>`<div>${p[0]>0?"+":""}${p[0]} — ${p[1]}</div>`).join("")}</div></details>
+    <button class="btn-primary" style="margin-top:12px" onclick="navGo('oyna')">🚀 Oynamaya Devam</button>
+    <button class="btn-pass" style="width:100%;margin-top:10px" onclick="showArchive(false)">📖 Tüm Kararlarım (${archiveCount()})</button>
+  </div>`;
+}
+
 function showScenario(){
+  setView("oyna"); // oyun ortasında başka sekmeden dönünce nav vurgusu doğru kalsın
   const sc = round[state.i];
   state.qv = qVadeFor();
   const r = realOf(sc);
@@ -1155,9 +1428,10 @@ function resolve(){
   if(state.choice === "short") pnl = -stake * eff/100;
   state.sumPct += prevBal > 0 ? (pnl/prevBal)*100 : 0;
   state.balance = Math.max(0, state.balance + pnl);
-  state.history.push({choice:state.choice, risk:state.risk, pnl, pct:eff, sc});
+  const ta = r ? tradeAnalysis(r, effKey, state.choice, state.risk, prevBal) : { html:"", m:{} };
+  state.history.push(Object.assign({choice:state.choice, risk:state.risk, pnl, pct:eff, sc}, ta.m));
   const archStory = r ? `Gerçekleşen (${effLabel}): ${moveTxt}. Tüm vadeler — ${retLine(r).replace(/<[^>]+>/g,"")}` : sc.story;
-  saveToArchive(sc, state.choice, state.risk, pnl, eff, effLabel, archStory);
+  saveToArchive(sc, state.choice, state.risk, pnl, eff, effLabel, archStory, ta.m);
   if(currentPlayer()) setPlayerBal(currentPlayer(), state.balance);
   updateChip(); renderProgress(); updateSidePanels();
 
@@ -1178,6 +1452,7 @@ function resolve(){
       <span class="big">${pnl>0?"+":""}${pnl===0?"±$0":fmt$(pnl)}</span>
       Kararın: ${dirTxt}${riskTxt}
     </div>
+    ${ta.html}
     <div class="lesson">📚 <b>Ders:</b> ${lessonTxt}</div>
     <button class="btn-primary" onclick="${last ? "showFinal()" : "nextScenario()"}">
       ${last ? "Sonuçları ve Ders Özetini Gör 🏁" : "Sıradaki Soru →"}</button>
@@ -1279,6 +1554,7 @@ function showFinal(){
         <button class="btn-primary" style="background:var(--green)" onclick="showRegister('final')">🌍 Kaydol ve Sıralamaya Gir</button>`}
     <div class="lesson-summary"><h3 style="color:var(--text)">🏆 Bu Cihazdaki Sıralama</h3><ul class="lb-list">${leaderboardHTML()}</ul></div>
     <button class="btn-primary" onclick="restart()">Aynı Kasayla Devam Et 🔄</button>
+    <button class="btn-pass" style="width:100%; margin-top:10px" onclick="showAnalysis()">📊 Karar Analizim (profil, zaaflar, disiplin skoru)</button>
     <button class="btn-pass" style="width:100%; margin-top:10px" onclick="showGlobalBoard('final')">🌍 Küresel Sıralamayı Gör</button>
     <button class="btn-pass" style="width:100%; margin-top:10px" onclick="showArchive(true)">📖 Çözülen Sorulara Göz At (${archiveCount()})</button>
     <button class="btn-pass" style="width:100%; margin-top:10px" onclick="switchPlayer()">👤 Oyuncu Değiştir</button>
